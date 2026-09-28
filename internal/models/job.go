@@ -30,3 +30,22 @@ type Destination struct {
 	JobID int64
 	Path  string
 }
+
+type Run struct {
+	ID               int64
+	JobID            int64
+	Status           string // "running", "success", "warning", "failed"
+	StartedAt        time.Time
+	CompletedAt      *time.Time
+	DurationSeconds  int64
+	BytesTransferred int64
+	FilesProcessed   int64 // Not in DB schema but useful in model, we can alter db if needed or just keep it here
+}
+
+type Log struct {
+	ID        int64
+	RunID     int64
+	Level     string
+	Message   string
+	CreatedAt time.Time
+}

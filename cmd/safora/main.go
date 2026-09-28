@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"strconv"
 
+	"safora/internal/backup"
 	"safora/internal/database"
 	"safora/internal/importer"
 	"safora/internal/pathresolver"
@@ -71,6 +74,44 @@ func main() {
 		}
 		
 		fmt.Printf("Successfully imported job ID: %d\n", job.ID)
+	case "run":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: safora run <job-id>")
+			os.Exit(1)
+		}
+		jobID, err := strconv.ParseInt(os.Args[2], 10, 64)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid job ID: %v\n", err)
+			os.Exit(1)
+		}
+
+		db, err := database.InitDB("safora.db")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error initializing database: %v\n", err)
+			os.Exit(1)
+		}
+
+		job, err := database.GetJobByID(db, jobID)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error getting job: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("▶ Starting Backup Job: %s (ID: %d)\n", job.Name, job.ID)
+		fmt.Println("--------------------------------------------------")
+
+		eng := backup.NewDefaultEngine(db)
+		run, err := eng.Run(context.Background(), job)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Job execution failed: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Println("--------------------------------------------------")
+		fmt.Printf("✓ Backup Completed: %s\n", run.Status)
+		fmt.Printf("  Files Copied: %d\n", run.FilesProcessed)
+		fmt.Printf("  Transferred:  %d bytes\n", run.BytesTransferred)
+		fmt.Printf("  Duration:     %ds\n", run.DurationSeconds)
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		os.Exit(1)

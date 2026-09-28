@@ -5,11 +5,11 @@ The core execution engine that runs a Job end-to-end. It evaluates dynamic Sourc
 
 **Blocked by:** 01 (Project Foundation & Path Template Engine), 02 (Legacy Batch Script & Robocopy Importer)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Implementation of `BackupEngine` interface with `DateStampedMirroring` strategy.
-- [ ] Recursive filesystem traversal with directory exclusion matching (`123LAUDOS123`, `node_modules`, etc.) and file patterns.
-- [ ] Retry loop for busy/locked files with configurable attempt count and delay interval.
-- [ ] Telemetry tracker calculating transferred bytes, file counts, and instantaneous transfer rate.
-- [ ] Run state recorder persisting start/finish timestamps, final status (`success`, `warning`, `failed`), and structured event logs into SQLite.
-- [ ] CLI command `safora run <job-id>` with styled terminal output showing live progress and completion summary.
+- [x] Implementation of `BackupEngine` interface with `DateStampedMirroring` strategy.
+- [x] Recursive filesystem traversal with directory exclusion matching (`123LAUDOS123`, `node_modules`, etc.) and file patterns.
+- [x] Retry loop for busy/locked files with configurable attempt count and delay interval.
+- [x] Telemetry tracker calculating transferred bytes, file counts, and instantaneous transfer rate.
+- [x] Run state recorder persisting start/finish timestamps, final status (`success`, `warning`, `failed`), and structured event logs into SQLite.
+- [x] CLI command `safora run <job-id>` with styled terminal output showing live progress and completion summary.
