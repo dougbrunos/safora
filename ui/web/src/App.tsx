@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { CreateJobForm } from '@/components/CreateJobForm';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -15,6 +16,7 @@ export default function App() {
   const [liveLog, setLiveLog] = useState<string[]>([]);
   const [progress, setProgress] = useState(0);
   const [showImport, setShowImport] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
   const [importText, setImportText] = useState('');
   
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -190,17 +192,37 @@ export default function App() {
             <div className="flex items-center justify-between">
               <h1 className="text-3xl font-bold tracking-tight">Configured Jobs</h1>
               
-              <Dialog open={showImport} onOpenChange={setShowImport}>
-                <DialogTrigger>
-                  <Button className="gap-2">
-                    <Plus size={16} /> Import Script
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle>Import Legacy Script</DialogTitle>
-                  </DialogHeader>
-                  <div className="my-4">
+              <div className="flex items-center gap-3">
+                <Dialog open={showCreate} onOpenChange={setShowCreate}>
+                  <DialogTrigger>
+                    <Button variant="outline" className="gap-2">
+                      <Plus size={16} /> New Backup
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Create Backup Job</DialogTitle>
+                    </DialogHeader>
+                    <div className="mt-4">
+                      <CreateJobForm 
+                        onSuccess={() => { setShowCreate(false); fetchJobs(); }} 
+                        onCancel={() => setShowCreate(false)} 
+                      />
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={showImport} onOpenChange={setShowImport}>
+                  <DialogTrigger>
+                    <Button className="gap-2">
+                      <Terminal size={16} /> Import Script
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Import Legacy Script</DialogTitle>
+                    </DialogHeader>
+                    <div className="my-4">
                     <p className="text-sm text-muted-foreground mb-4">
                       Paste your Windows <code>.bat</code> or <code>robocopy</code> command. Safora will automatically extract sources, destinations, exclusions, and retention dates.
                     </p>
@@ -217,6 +239,7 @@ export default function App() {
                   </div>
                 </DialogContent>
               </Dialog>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
