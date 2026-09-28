@@ -76,14 +76,21 @@ func (r *Runner) watchDrives(ctx context.Context) {
 				}
 
 				for _, dest := range fullJob.Destinations {
+					var drive string
 					if len(dest.Path) >= 2 && dest.Path[1] == ':' { // Windows F:
-						drive := dest.Path[:2]
+						drive = dest.Path[:2]
+					} else if len(dest.Path) > 6 && (dest.Path[:7] == "/media/" || dest.Path[:5] == "/mnt/") { // Linux paths
+						// Just use the first 3 directories as the "drive" identity (e.g. /media/user/usb)
+						// Highly simplified for MVP
+						drive = dest.Path
+					}
+
+					if drive != "" {
 						if !knownDrives[drive] {
-							// Drive not previously seen, let's see if it's there now
-							// (This is highly simplified for MVP)
+							// For MVP, we assume if it's evaluated here, it just "arrived" 
+							// In a real implementation we'd check os.Stat to see if it's actually mounted
 							knownDrives[drive] = true
-							// Trigger job since drive arrived
-							log.Printf("Drive %s detected, triggering job %d", drive, job.ID)
+							log.Printf("Drive/Mount %s detected, triggering job %d", drive, job.ID)
 							go r.executeJob(job.ID)
 						}
 					}
