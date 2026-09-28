@@ -5,10 +5,10 @@ The background automation and operating system integration layer. It allows Safo
 
 **Blocked by:** 05 (REST API & Real-time SSE Telemetry Streaming), 06 (Embedded Web Dashboard & Script Importer UI)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] OS Service manager supporting `safora service [install | uninstall | start | stop | status]` using `kardianos/service` (standard Go cross-platform service library).
-- [ ] In-process scheduler supporting cron expressions and interval-based Job triggering.
-- [ ] Drive Arrival Watcher monitoring volume mount events and drive letters (e.g., when drive `F:` arrives) to automatically trigger linked Jobs.
-- [ ] Desktop notifier displaying native Windows toast notifications (Success / Failure with technical reason) upon Run completion.
-- [ ] End-to-end integration test verifying scheduled execution and notification dispatch.
+- [x] OS Service manager supporting `safora service [install | uninstall | start | stop | status]` using `kardianos/service` (standard Go cross-platform service library).
+- [x] In-process scheduler supporting cron expressions and interval-based Job triggering.
+- [x] Drive Arrival Watcher monitoring volume mount events and drive letters (e.g., when drive `F:` arrives) to automatically trigger linked Jobs.
+- [x] Desktop notifier displaying native Windows toast notifications (Success / Failure with technical reason) upon Run completion.
+- [x] End-to-end integration test verifying scheduled execution and notification dispatch.

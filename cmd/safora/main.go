@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"safora/internal/backup"
+	"safora/internal/daemon"
 	"safora/internal/database"
 	"safora/internal/importer"
 	"safora/internal/pathresolver"
@@ -130,6 +131,23 @@ func main() {
 		fmt.Printf("Starting Safora API server on %s\n", addr)
 		if err := server.Start(addr); err != nil {
 			fmt.Fprintf(os.Stderr, "Server failed: %v\n", err)
+			os.Exit(1)
+		}
+	case "service":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: safora service [install | uninstall | start | stop | status | run]")
+			os.Exit(1)
+		}
+		action := os.Args[2]
+		
+		db, err := database.InitDB("safora.db")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error initializing database: %v\n", err)
+			os.Exit(1)
+		}
+		
+		if err := daemon.ManageService(action, db); err != nil {
+			fmt.Fprintf(os.Stderr, "Service error: %v\n", err)
 			os.Exit(1)
 		}
 	default:
