@@ -29,6 +29,9 @@ func migrate(db *sql.DB) error {
 			description TEXT,
 			storage_strategy TEXT NOT NULL,
 			retention_policy TEXT,
+			retry_count INTEGER DEFAULT 0,
+			retry_wait INTEGER DEFAULT 0,
+			log_output TEXT,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		);`,
 		`CREATE TABLE IF NOT EXISTS sources (

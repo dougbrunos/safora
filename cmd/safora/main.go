@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"safora/internal/database"
+	"safora/internal/importer"
 	"safora/internal/pathresolver"
 )
 
@@ -43,6 +44,33 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Println("Database initialized successfully.")
+	case "job":
+		if len(os.Args) < 4 || os.Args[2] != "import" {
+			fmt.Println("Usage: safora job import <file.bat>")
+			os.Exit(1)
+		}
+		batFile := os.Args[3]
+		job, err := importer.ParseBatchScript(batFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error parsing script: %v\n", err)
+			os.Exit(1)
+		}
+		
+		fmt.Printf("Parsed Job: %+v\n", job)
+
+		// Persist to SQLite
+		db, err := database.InitDB("safora.db")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error initializing database: %v\n", err)
+			os.Exit(1)
+		}
+		
+		if err := database.SaveJob(db, job); err != nil {
+			fmt.Fprintf(os.Stderr, "Error saving job: %v\n", err)
+			os.Exit(1)
+		}
+		
+		fmt.Printf("Successfully imported job ID: %d\n", job.ID)
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		os.Exit(1)
