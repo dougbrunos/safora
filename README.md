@@ -40,11 +40,6 @@ Safora replaces fragile, manual backup scripts (such as Windows `.bat` files wra
    go build -o safora ./cmd/safora
    ```
 
-## Documentation
-
-* [Domain Model & Glossary](CONTEXT.md)
-* [Architecture Decision Records (ADRs)](docs/adr/)
-* [Design System](ui/SAFORA_DESIGN_SYSTEM.md)
 
 ## License
 
