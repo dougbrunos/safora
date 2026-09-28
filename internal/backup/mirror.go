@@ -17,12 +17,13 @@ import (
 )
 
 type DateStampedMirroring struct {
-	db    *sql.DB
-	runID int64
+	db          *sql.DB
+	runID       int64
+	logCallback func(level, msg string)
 }
 
-func NewDateStampedMirroring(db *sql.DB, runID int64) *DateStampedMirroring {
-	return &DateStampedMirroring{db: db, runID: runID}
+func NewDateStampedMirroring(db *sql.DB, runID int64, cb func(level, msg string)) *DateStampedMirroring {
+	return &DateStampedMirroring{db: db, runID: runID, logCallback: cb}
 }
 
 func (s *DateStampedMirroring) Run(ctx context.Context, job *models.Job) (*models.Run, error) {
@@ -179,10 +180,14 @@ func parseExclusions(excl string) ([]string, []string) {
 }
 
 func (s *DateStampedMirroring) log(level string, err error) {
+	msg := err.Error()
+	if s.logCallback != nil {
+		s.logCallback(level, msg)
+	}
 	_ = database.SaveLog(s.db, &models.Log{
 		RunID:     s.runID,
 		Level:     level,
-		Message:   err.Error(),
+		Message:   msg,
 		CreatedAt: time.Now(),
 	})
 }

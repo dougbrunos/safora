@@ -10,6 +10,7 @@ import (
 	"safora/internal/database"
 	"safora/internal/importer"
 	"safora/internal/pathresolver"
+	"safora/internal/api"
 )
 
 func main() {
@@ -112,6 +113,25 @@ func main() {
 		fmt.Printf("  Files Copied: %d\n", run.FilesProcessed)
 		fmt.Printf("  Transferred:  %d bytes\n", run.BytesTransferred)
 		fmt.Printf("  Duration:     %ds\n", run.DurationSeconds)
+	case "serve":
+		db, err := database.InitDB("safora.db")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error initializing database: %v\n", err)
+			os.Exit(1)
+		}
+		
+		server := api.NewServer(db)
+		port := "8080"
+		if len(os.Args) >= 3 {
+			port = os.Args[2]
+		}
+		
+		addr := "127.0.0.1:" + port
+		fmt.Printf("Starting Safora API server on %s\n", addr)
+		if err := server.Start(addr); err != nil {
+			fmt.Fprintf(os.Stderr, "Server failed: %v\n", err)
+			os.Exit(1)
+		}
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		os.Exit(1)

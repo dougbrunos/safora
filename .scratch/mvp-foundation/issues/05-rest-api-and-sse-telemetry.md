@@ -5,11 +5,11 @@ An embedded HTTP REST and Server-Sent Events (SSE) server exposing endpoints for
 
 **Blocked by:** 03 (Date-Stamped Mirroring Backup Engine), 04 (Retention Engine)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] REST API endpoints for Jobs (`GET /api/jobs`, `POST /api/jobs`, `GET /api/jobs/:id`, `DELETE /api/jobs/:id`).
-- [ ] Endpoint `POST /api/jobs/:id/run` to trigger immediate Job execution in a background goroutine.
-- [ ] Endpoint `POST /api/importer/parse` accepting raw `.bat` or `robocopy` text and returning parsed Job JSON.
-- [ ] Endpoint `GET /api/runs` and `GET /api/runs/:id` returning Run execution history and structured logs.
-- [ ] SSE endpoint `GET /api/stream` with pub/sub broker streaming real-time Run progress and log events.
-- [ ] Localhost bind security with optional authorization token support.
+- [x] REST API endpoints for Jobs (`GET /api/jobs`, `POST /api/jobs`, `GET /api/jobs/:id`, `DELETE /api/jobs/:id`).
+- [x] Endpoint `POST /api/jobs/:id/run` to trigger immediate Job execution in a background goroutine.
+- [x] Endpoint `POST /api/importer/parse` accepting raw `.bat` or `robocopy` text and returning parsed Job JSON.
+- [x] Endpoint `GET /api/runs` and `GET /api/runs/:id` returning Run execution history and structured logs.
+- [x] SSE endpoint `GET /api/stream` with pub/sub broker streaming real-time Run progress and log events.
+- [x] Localhost bind security with optional authorization token support.

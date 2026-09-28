@@ -16,11 +16,16 @@ type Engine interface {
 }
 
 type DefaultEngine struct {
-	db *sql.DB
+	db          *sql.DB
+	logCallback func(level, msg string)
 }
 
 func NewDefaultEngine(db *sql.DB) *DefaultEngine {
 	return &DefaultEngine{db: db}
+}
+
+func (e *DefaultEngine) SetLogCallback(cb func(level, msg string)) {
+	e.logCallback = cb
 }
 
 func (e *DefaultEngine) Run(ctx context.Context, job *models.Job) (*models.Run, error) {
@@ -37,7 +42,7 @@ func (e *DefaultEngine) Run(ctx context.Context, job *models.Job) (*models.Run, 
 
 	var strategy Engine
 	if job.StorageStrategy == "Date-Stamped Mirroring" || job.StorageStrategy == "" {
-		strategy = NewDateStampedMirroring(e.db, run.ID)
+		strategy = NewDateStampedMirroring(e.db, run.ID, e.logCallback)
 	} else {
 		err := fmt.Errorf("unsupported storage strategy: %s", job.StorageStrategy)
 		e.failRun(run, err)
@@ -89,10 +94,14 @@ func (e *DefaultEngine) failRun(run *models.Run, err error) {
 }
 
 func (e *DefaultEngine) log(runID int64, level string, err error) {
+	msg := err.Error()
+	if e.logCallback != nil {
+		e.logCallback(level, msg)
+	}
 	_ = database.SaveLog(e.db, &models.Log{
 		RunID:     runID,
 		Level:     level,
-		Message:   err.Error(),
+		Message:   msg,
 		CreatedAt: time.Now(),
 	})
 }

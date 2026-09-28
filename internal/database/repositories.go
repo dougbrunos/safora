@@ -127,3 +127,77 @@ func SaveLog(db *sql.DB, log *models.Log) error {
 		VALUES (?, ?, ?, ?)`, log.RunID, log.Level, log.Message, log.CreatedAt)
 	return err
 }
+
+func GetAllJobs(db *sql.DB) ([]models.Job, error) {
+	rows, err := db.Query("SELECT id, name, description, storage_strategy, retention_policy, retry_count, retry_wait, log_output, created_at FROM jobs")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var jobs []models.Job
+	for rows.Next() {
+		var job models.Job
+		if err := rows.Scan(&job.ID, &job.Name, &job.Description, &job.StorageStrategy, &job.RetentionPolicy, &job.RetryCount, &job.RetryWait, &job.LogOutput, &job.CreatedAt); err != nil {
+			return nil, err
+		}
+		jobs = append(jobs, job)
+	}
+	// Note: We could load sources/destinations here, but often a list endpoint skips them.
+	// For simplicity, let's just return the jobs without them, or we can fetch them.
+	return jobs, nil
+}
+
+func DeleteJob(db *sql.DB, id int64) error {
+	_, err := db.Exec("DELETE FROM jobs WHERE id = ?", id)
+	return err
+}
+
+func GetAllRuns(db *sql.DB) ([]models.Run, error) {
+	rows, err := db.Query("SELECT id, job_id, status, started_at, completed_at, duration_seconds, bytes_transferred FROM runs ORDER BY started_at DESC LIMIT 100")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var runs []models.Run
+	for rows.Next() {
+		var r models.Run
+		if err := rows.Scan(&r.ID, &r.JobID, &r.Status, &r.StartedAt, &r.CompletedAt, &r.DurationSeconds, &r.BytesTransferred); err != nil {
+			return nil, err
+		}
+		runs = append(runs, r)
+	}
+	return runs, nil
+}
+
+func GetRunByID(db *sql.DB, id int64) (*models.Run, error) {
+	r := &models.Run{}
+	row := db.QueryRow("SELECT id, job_id, status, started_at, completed_at, duration_seconds, bytes_transferred FROM runs WHERE id = ?", id)
+	err := row.Scan(&r.ID, &r.JobID, &r.Status, &r.StartedAt, &r.CompletedAt, &r.DurationSeconds, &r.BytesTransferred)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("run not found")
+		}
+		return nil, err
+	}
+	return r, nil
+}
+
+func GetLogsForRun(db *sql.DB, runID int64) ([]models.Log, error) {
+	rows, err := db.Query("SELECT id, run_id, level, message, created_at FROM logs WHERE run_id = ? ORDER BY created_at ASC", runID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var logs []models.Log
+	for rows.Next() {
+		var l models.Log
+		if err := rows.Scan(&l.ID, &l.RunID, &l.Level, &l.Message, &l.CreatedAt); err != nil {
+			return nil, err
+		}
+		logs = append(logs, l)
+	}
+	return logs, nil
+}
