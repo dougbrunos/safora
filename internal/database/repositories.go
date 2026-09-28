@@ -201,3 +201,57 @@ func GetLogsForRun(db *sql.DB, runID int64) ([]models.Log, error) {
 	}
 	return logs, nil
 }
+
+// UpdateJob updates a Job and its related sources and destinations.
+func UpdateJob(db *sql.DB, job *models.Job) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	_, err = tx.Exec(`
+		UPDATE jobs SET name = ?, description = ?, storage_strategy = ?, retention_policy = ?, retry_count = ?, retry_wait = ?, log_output = ?
+		WHERE id = ?`,
+		job.Name, job.Description, job.StorageStrategy, job.RetentionPolicy, job.RetryCount, job.RetryWait, job.LogOutput, job.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("update job: %w", err)
+	}
+
+	_, err = tx.Exec(`DELETE FROM sources WHERE job_id = ?`, job.ID)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(`DELETE FROM destinations WHERE job_id = ?`, job.ID)
+	if err != nil {
+		return err
+	}
+
+	for i := range job.Sources {
+		src := &job.Sources[i]
+		_, err := tx.Exec(`
+			INSERT INTO sources (job_id, path, exclusion_rules)
+			VALUES (?, ?, ?)`,
+			job.ID, src.Path, src.ExclusionRules,
+		)
+		if err != nil {
+			return fmt.Errorf("insert source: %w", err)
+		}
+	}
+
+	for i := range job.Destinations {
+		dst := &job.Destinations[i]
+		_, err := tx.Exec(`
+			INSERT INTO destinations (job_id, path)
+			VALUES (?, ?)`,
+			job.ID, dst.Path,
+		)
+		if err != nil {
+			return fmt.Errorf("insert destination: %w", err)
+		}
+	}
+
+	return tx.Commit()
+}

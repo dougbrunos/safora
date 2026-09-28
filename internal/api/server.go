@@ -54,6 +54,7 @@ func (s *Server) Start(addr string) error {
 	mux22 := http.NewServeMux()
 	mux22.HandleFunc("GET /api/jobs", s.handleGetJobs)
 	mux22.HandleFunc("POST /api/jobs", s.handleCreateJob)
+	mux22.HandleFunc("PUT /api/jobs/{id}", s.handleUpdateJob)
 	mux22.HandleFunc("GET /api/jobs/{id}", s.handleGetJobByID)
 	mux22.HandleFunc("DELETE /api/jobs/{id}", s.handleDeleteJob)
 	mux22.HandleFunc("POST /api/jobs/{id}/run", s.handleRunJob)
@@ -229,4 +230,25 @@ func (s *Server) handleGetRunByID(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	json.NewEncoder(w).Encode(response)
+}
+
+func (s *Server) handleUpdateJob(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	var job models.Job
+	if err := json.NewDecoder(r.Body).Decode(&job); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	job.ID = id
+
+	if err := database.UpdateJob(s.db, &job); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(job)
 }

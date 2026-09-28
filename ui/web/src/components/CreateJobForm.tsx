@@ -22,9 +22,10 @@ const jobSchema = z.object({
 interface Props {
   onSuccess: () => void;
   onCancel: () => void;
+  jobToEdit?: any;
 }
 
-export function CreateJobForm({ onSuccess, onCancel }: Props) {
+export function CreateJobForm({ onSuccess, onCancel, jobToEdit }: Props) {
   const [loading, setLoading] = useState(false)
 
   const {
@@ -36,12 +37,12 @@ export function CreateJobForm({ onSuccess, onCancel }: Props) {
   } = useForm({
     resolver: zodResolver(jobSchema),
     defaultValues: {
-      name: "",
-      source: "",
-      destination: "",
-      enableVSS: false,
-      retention: "KEEP 5",
-      exclusions: "",
+      name: jobToEdit?.Name || "",
+      source: jobToEdit?.Sources?.[0]?.Path || "",
+      destination: jobToEdit?.Destinations?.[0]?.Path || "",
+      enableVSS: jobToEdit?.Description === "VSS Enabled" || false,
+      retention: jobToEdit?.RetentionPolicy || "KEEP 5",
+      exclusions: jobToEdit?.Sources?.[0]?.ExclusionRules || "",
     },
   })
 
@@ -53,15 +54,21 @@ export function CreateJobForm({ onSuccess, onCancel }: Props) {
     try {
       const payload = {
         Name: data.name,
-        StorageStrategy: "Date-Stamped Mirroring",
+        StorageStrategy: jobToEdit?.StorageStrategy || "Date-Stamped Mirroring",
         RetentionPolicy: data.retention,
         Description: data.enableVSS ? "VSS Enabled" : "",
+        RetryCount: jobToEdit?.RetryCount || 3,
+        RetryWait: jobToEdit?.RetryWait || 30,
+        LogOutput: jobToEdit?.LogOutput || "",
         Sources: [{ Path: data.source, ExclusionRules: data.exclusions || "" }],
         Destinations: [{ Path: data.destination }],
       }
 
-      const res = await fetch("/api/jobs", {
-        method: "POST",
+      const url = jobToEdit ? `/api/jobs/${jobToEdit.ID}` : "/api/jobs"
+      const method = jobToEdit ? "PUT" : "POST"
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       })
@@ -139,7 +146,7 @@ export function CreateJobForm({ onSuccess, onCancel }: Props) {
       <div className="flex justify-end gap-3 pt-4 border-t border-border">
         <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
         <Button type="submit" disabled={loading}>
-          {loading ? "Saving..." : "Create Job"}
+          {loading ? "Saving..." : jobToEdit ? "Save Changes" : "Create Job"}
         </Button>
       </div>
     </form>

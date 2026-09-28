@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Play, Plus, Server, CheckCircle, XCircle, Terminal } from 'lucide-react';
+import { Play, Plus, Server, CheckCircle, XCircle, Terminal, Pencil, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { CreateJobForm } from '@/components/CreateJobForm';
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
   const [progress, setProgress] = useState(0);
   const [showImport, setShowImport] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [jobToEdit, setJobToEdit] = useState<any>(null);
   const [importText, setImportText] = useState('');
   
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -57,8 +59,14 @@ export default function App() {
 
   const handleRunJob = async (id: number) => {
     setProgress(0);
+    setActiveTab('dashboard');
     await fetch(`/api/jobs/${id}/run`, { method: 'POST' });
     setLiveLog(prev => [...prev, `[INFO] Triggered Job ID ${id}...`]);
+  };
+
+  const handleDeleteJob = async (id: number) => {
+    await fetch(`/api/jobs/${id}`, { method: 'DELETE' });
+    fetchJobs();
   };
 
   const handleImport = async () => {
@@ -193,20 +201,24 @@ export default function App() {
               <h1 className="text-3xl font-bold tracking-tight">Configured Jobs</h1>
               
               <div className="flex items-center gap-3">
-                <Dialog open={showCreate} onOpenChange={setShowCreate}>
+                <Dialog open={showCreate} onOpenChange={(val) => {
+                  setShowCreate(val);
+                  if (!val) setJobToEdit(null);
+                }}>
                   <DialogTrigger>
-                    <Button variant="outline" className="gap-2">
+                    <Button variant="outline" className="gap-2" onClick={() => setJobToEdit(null)}>
                       <Plus size={16} /> New Backup
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                      <DialogTitle>Create Backup Job</DialogTitle>
+                      <DialogTitle>{jobToEdit ? "Edit Backup Job" : "Create Backup Job"}</DialogTitle>
                     </DialogHeader>
                     <div className="mt-4">
                       <CreateJobForm 
-                        onSuccess={() => { setShowCreate(false); fetchJobs(); }} 
-                        onCancel={() => setShowCreate(false)} 
+                        jobToEdit={jobToEdit}
+                        onSuccess={() => { setShowCreate(false); setJobToEdit(null); fetchJobs(); }} 
+                        onCancel={() => { setShowCreate(false); setJobToEdit(null); }} 
                       />
                     </div>
                   </DialogContent>
@@ -248,7 +260,34 @@ export default function App() {
                   <CardHeader>
                     <CardTitle className="text-xl flex items-center justify-between">
                       {job.Name}
-                      <Badge variant="outline">ID: {job.ID}</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">ID: {job.ID}</Badge>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                          setJobToEdit(job);
+                          setShowCreate(true);
+                        }}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete the backup job. The files copied so far will remain untouched.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => handleDeleteJob(job.ID)}>Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </CardTitle>
                     <CardDescription>
                       {job.StorageStrategy} &bull; {job.RetentionPolicy || 'No Retention'}
