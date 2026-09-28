@@ -121,7 +121,7 @@ func main() {
 		}
 		
 		server := api.NewServer(db)
-		port := "8080"
+		port := "3434"
 		if len(os.Args) >= 3 {
 			port = os.Args[2]
 		}

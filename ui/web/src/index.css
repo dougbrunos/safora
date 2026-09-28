@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --color-safora-navy-950: #0B1220;
+  --color-safora-navy-900: #0F172A;
+  --color-safora-teal-500: #00D1B2;
+  
+  --font-sans: 'Outfit', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+body {
+  background-color: var(--color-safora-navy-950);
+  color: #F8FAFC;
+}

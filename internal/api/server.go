@@ -15,6 +15,7 @@ import (
 	"safora/internal/database"
 	"safora/internal/importer"
 	"safora/internal/models"
+	"safora/ui"
 )
 
 type Server struct {
@@ -63,6 +64,12 @@ func (s *Server) Start(addr string) error {
 	mux22.HandleFunc("GET /api/runs/{id}", s.handleGetRunByID)
 	
 	mux22.HandleFunc("GET /api/stream", s.broker.ServeHTTP)
+
+	// Serve UI
+	importUI := func() http.Handler {
+		return http.FileServer(ui.GetStaticFS())
+	}
+	mux22.Handle("/", importUI())
 
 	return http.ListenAndServe(addr, s.authMiddleware(mux22))
 }

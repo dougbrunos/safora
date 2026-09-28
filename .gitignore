@@ -9,4 +9,4 @@
 # OS specific
 .DS_Store
 
-.agents
+.agentsnode_modules/
