@@ -8,6 +8,7 @@ import (
 
 	"safora/internal/database"
 	"safora/internal/models"
+	"safora/internal/retention"
 )
 
 type Engine interface {
@@ -61,6 +62,19 @@ func (e *DefaultEngine) Run(ctx context.Context, job *models.Job) (*models.Run, 
 	}
 
 	e.log(run.ID, "INFO", fmt.Errorf("Job finished with status %s", run.Status))
+
+	// Post-run retention hook
+	retEngine := retention.NewEngine()
+	pruned, err := retEngine.Prune(ctx, job, run.Status)
+	if err != nil {
+		if err.Error() == "retention lock active: last run failed" {
+			e.log(run.ID, "WARNING", fmt.Errorf("Retention bypassed: %w", err))
+		} else {
+			e.log(run.ID, "ERROR", fmt.Errorf("Retention error: %w", err))
+		}
+	} else if len(pruned) > 0 {
+		e.log(run.ID, "INFO", fmt.Errorf("Retention pruned %d historical copies", len(pruned)))
+	}
 
 	return run, nil
 }

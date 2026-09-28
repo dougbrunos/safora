@@ -5,10 +5,10 @@ An automated retention and cleanup subsystem that prunes historical backup copie
 
 **Blocked by:** 03 (Date-Stamped Mirroring Backup Engine)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Implementation of `RetentionPolicy` evaluator supporting count-based and age-based rules.
-- [ ] Scanning and identification of date-stamped backup folders at local and NAS destinations.
-- [ ] Retention Lock enforcement: verification that the current Run was successful and that at least one valid backup copy remains before any pruning occurs.
-- [ ] Post-run hook integrated into the Job runner to automatically trigger retention cleanup upon successful Run completion.
-- [ ] Comprehensive unit tests verifying prune calculations, edge cases, and that Retention Lock prevents data loss during run failures.
+- [x] Implementation of `RetentionPolicy` evaluator supporting count-based and age-based rules.
+- [x] Scanning and identification of date-stamped backup folders at local and NAS destinations.
+- [x] Retention Lock enforcement: verification that the current Run was successful and that at least one valid backup copy remains before any pruning occurs.
+- [x] Post-run hook integrated into the Job runner to automatically trigger retention cleanup upon successful Run completion.
+- [x] Comprehensive unit tests verifying prune calculations, edge cases, and that Retention Lock prevents data loss during run failures.
