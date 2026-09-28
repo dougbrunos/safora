@@ -11,3 +11,5 @@
 
 .agentsnode_modules/
 docs/
+.agents/skills/
+.scratch/
