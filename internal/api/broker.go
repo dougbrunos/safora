@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 )
 
 type Broker struct {
@@ -36,8 +37,15 @@ func (b *Broker) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		b.mu.Unlock()
 	}()
 
+	// A comment line every 15s keeps idle connections alive (long copies can be silent).
+	keepAlive := time.NewTicker(15 * time.Second)
+	defer keepAlive.Stop()
+
 	for {
 		select {
+		case <-keepAlive.C:
+			fmt.Fprint(rw, ": ping\n\n")
+			flusher.Flush()
 		case msg := <-ch:
 			fmt.Fprintf(rw, "data: %s\n\n", msg)
 			flusher.Flush()

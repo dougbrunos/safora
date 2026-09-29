@@ -163,6 +163,7 @@ export default function App() {
   const [jobToEdit, setJobToEdit] = useState<any>(null);
   const [jobToDelete, setJobToDelete] = useState<any>(null);
   const [importText, setImportText] = useState('');
+  const [notice, setNotice] = useState<string | null>(null);
   const [historyStatus, setHistoryStatus] = useState('all');
   const [historyJob, setHistoryJob] = useState('all');
   const [openRun, setOpenRun] = useState<number | null>(null);
@@ -195,6 +196,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 7000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [liveLog]);
 
@@ -209,10 +216,15 @@ export default function App() {
   };
 
   const handleRunJob = async (id: number) => {
-    setProgress(0);
-    setLiveLog([]);
-    setActiveTab('dashboard');
-    await fetch(`/api/jobs/${id}/run`, { method: 'POST' });
+    const res = await fetch(`/api/jobs/${id}/run`, { method: 'POST' }).catch(() => null);
+    if (res?.status === 202) {
+      // The Run's "Starting job" event clears the telemetry by itself.
+      setActiveTab('dashboard');
+    } else if (res?.status === 409) {
+      setNotice(t('run_already'));
+    } else {
+      setNotice(`${t('run_failed')} ${res ? await res.text() : ''}`.trim());
+    }
   };
 
   const handleDeleteJob = async (id: number) => {
@@ -543,7 +555,11 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-                <Select value={historyJob} onValueChange={(v) => setHistoryJob(v as string)}>
+                <Select
+                  value={historyJob}
+                  items={[{ value: 'all', label: t('filter_job_all') }, ...jobs.map((j: any) => ({ value: String(j.ID), label: j.Name }))]}
+                  onValueChange={(v) => setHistoryJob(v as string)}
+                >
                   <SelectTrigger className="w-56">
                     <SelectValue />
                   </SelectTrigger>
@@ -579,6 +595,14 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {notice && (
+        <div role="status" className="fixed bottom-4 right-4 z-50 flex max-w-sm items-start gap-3 rounded-lg border border-warning/40 bg-card px-4 py-3 text-sm shadow-lg">
+          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+          <span>{notice}</span>
+          <button type="button" aria-label={t('close')} onClick={() => setNotice(null)} className="ml-1 text-muted-foreground hover:text-foreground">×</button>
+        </div>
+      )}
 
       {/* Create / edit */}
       <Dialog open={showCreate} onOpenChange={(val) => { setShowCreate(val); if (!val) setJobToEdit(null); }}>

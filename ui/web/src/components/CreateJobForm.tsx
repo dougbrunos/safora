@@ -120,6 +120,11 @@ export function CreateJobForm({ onSuccess, onCancel, jobToEdit }: Props) {
   const sourceValues = watch("sources")
   const hasDateTemplate = (watch("destinations") || []).some((d: any) => d?.path?.includes("{"))
 
+  const retentionOptions = [
+    ...[3, 5, 10, 30].map((n) => ({ value: `keep ${n} runs`, label: t("keep_last").replace("{n}", String(n)) })),
+    ...[7, 30, 90].map((n) => ({ value: `keep ${n} days`, label: t("keep_days").replace("{n}", String(n)) })),
+  ]
+
   const onSubmit = async (data: any) => {
     setLoading(true)
     try {
@@ -274,16 +279,13 @@ export function CreateJobForm({ onSuccess, onCancel, jobToEdit }: Props) {
           <>
             <div className="space-y-2">
               <Label>{t("retention_policy")}</Label>
-              <Select value={retention as string} onValueChange={(val) => setValue("retention", val as string)}>
+              <Select value={retention as string} items={retentionOptions} onValueChange={(val) => setValue("retention", val as string)}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder={t("select_retention")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {[3, 5, 10, 30].map((n) => (
-                    <SelectItem key={`r${n}`} value={`keep ${n} runs`}>{t("keep_last").replace("{n}", String(n))}</SelectItem>
-                  ))}
-                  {[7, 30, 90].map((n) => (
-                    <SelectItem key={`d${n}`} value={`keep ${n} days`}>{t("keep_days").replace("{n}", String(n))}</SelectItem>
+                  {retentionOptions.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

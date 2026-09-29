@@ -24,7 +24,7 @@ export function ScheduleField({ value, onChange }: { value: string; onChange: (c
 
   return (
     <div className="space-y-3">
-      <Select value={s.mode} onValueChange={(v) => update({ mode: v as Mode })}>
+      <Select value={s.mode} items={MODES.map((m) => ({ value: m, label: t(`sched_${m}`) }))} onValueChange={(v) => update({ mode: v as Mode })}>
         <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
         <SelectContent>
           {MODES.map((m) => <SelectItem key={m} value={m}>{t(`sched_${m}`)}</SelectItem>)}
