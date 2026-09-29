@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="images/banner.png" alt="Safora" width="100%">
+</p>
+
 # Safora
 
 Open-source automated backup management.
