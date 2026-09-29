@@ -24,7 +24,7 @@ jobs:
           cache: npm
           cache-dependency-path: ui/web/package-lock.json
       - name: Build
-        run: scripts/build-release.sh "${GITHUB_REF_NAME#v}"
+        run: sh scripts/build-release.sh "${GITHUB_REF_NAME#v}"
       - uses: actions/upload-artifact@v4
         with:
           name: build
