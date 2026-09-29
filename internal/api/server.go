@@ -31,7 +31,6 @@ func NewServer(db *sql.DB) *Server {
 }
 
 func (s *Server) Start(addr string) error {
-	go s.broker.Start()
 
 	mux := http.NewServeMux()
 
@@ -58,12 +57,12 @@ func (s *Server) Start(addr string) error {
 	mux22.HandleFunc("GET /api/jobs/{id}", s.handleGetJobByID)
 	mux22.HandleFunc("DELETE /api/jobs/{id}", s.handleDeleteJob)
 	mux22.HandleFunc("POST /api/jobs/{id}/run", s.handleRunJob)
-	
+
 	mux22.HandleFunc("POST /api/importer/parse", s.handleImporterParse)
-	
+
 	mux22.HandleFunc("GET /api/runs", s.handleGetRuns)
 	mux22.HandleFunc("GET /api/runs/{id}", s.handleGetRunByID)
-	
+
 	mux22.HandleFunc("GET /api/stream", s.broker.ServeHTTP)
 
 	// Serve UI
@@ -158,7 +157,7 @@ func (s *Server) handleRunJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	eng := backup.NewDefaultEngine(s.db)
-	
+
 	// Hook the engine logger to SSE broker
 	eng.SetLogCallback(func(level, msg string) {
 		s.broker.Broadcast(fmt.Sprintf("[%s] %s", level, msg))
@@ -218,9 +217,9 @@ func (s *Server) handleGetRunByID(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	
+
 	logs, _ := database.GetLogsForRun(s.db, id)
-	
+
 	response := struct {
 		*models.Run
 		Logs []models.Log `json:"logs"`
@@ -228,7 +227,7 @@ func (s *Server) handleGetRunByID(w http.ResponseWriter, r *http.Request) {
 		Run:  run,
 		Logs: logs,
 	}
-	
+
 	json.NewEncoder(w).Encode(response)
 }
 

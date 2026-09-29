@@ -2,7 +2,7 @@ package retention
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"os"
 	"path/filepath"
 	"sort"
@@ -12,6 +12,8 @@ import (
 
 	"safora/internal/models"
 )
+
+var ErrLocked = errors.New("retention lock active: last run failed")
 
 type Engine struct{}
 
@@ -23,7 +25,7 @@ func NewEngine() *Engine {
 func (e *Engine) Prune(ctx context.Context, job *models.Job, lastRunStatus string) ([]string, error) {
 	// Retention Lock Rule 1: Do not prune if the current run failed
 	if lastRunStatus == "failed" {
-		return nil, fmt.Errorf("retention lock active: last run failed")
+		return nil, ErrLocked
 	}
 
 	if job.RetentionPolicy == "" {
@@ -39,9 +41,9 @@ func (e *Engine) Prune(ctx context.Context, job *models.Job, lastRunStatus strin
 			// Not a templated path, cannot do automatic retention reliably
 			continue
 		}
-		
+
 		parentDir := dest.Path[:idx]
-		
+
 		if _, err := os.Stat(parentDir); os.IsNotExist(err) {
 			continue
 		}
@@ -96,7 +98,7 @@ func (e *Engine) Prune(ctx context.Context, job *models.Job, lastRunStatus strin
 
 func (e *Engine) evaluatePolicy(policy string, candidates []os.FileInfo) []string {
 	var toDelete []string
-	
+
 	parts := strings.Split(policy, " ")
 	if len(parts) >= 3 && parts[0] == "keep" {
 		val, err := strconv.Atoi(parts[1])

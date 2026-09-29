@@ -10,8 +10,9 @@ import (
 	"safora/internal/api"
 )
 
+const listenAddr = "127.0.0.1:3434"
+
 type program struct {
-	db     *sql.DB
 	server *api.Server
 	runner *Runner
 	ctx    context.Context
@@ -20,23 +21,15 @@ type program struct {
 
 func (p *program) Start(s service.Service) error {
 	p.ctx, p.cancel = context.WithCancel(context.Background())
-	
-	// Start web API and background scheduler
-	go p.run()
-	
-	return nil
-}
 
-func (p *program) run() {
 	go func() {
-		port := "3434"
-		addr := "127.0.0.1:" + port
-		if err := p.server.Start(addr); err != nil {
+		if err := p.server.Start(listenAddr); err != nil {
 			log.Printf("Server failed: %v", err)
 		}
 	}()
+	go p.runner.Start(p.ctx)
 
-	p.runner.Start(p.ctx)
+	return nil
 }
 
 func (p *program) Stop(s service.Service) error {
@@ -54,7 +47,6 @@ func ManageService(action string, db *sql.DB) error {
 	}
 
 	prg := &program{
-		db:     db,
 		server: api.NewServer(db),
 		runner: NewRunner(db),
 	}

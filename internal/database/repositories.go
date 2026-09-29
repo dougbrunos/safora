@@ -2,10 +2,13 @@ package database
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"safora/internal/models"
 )
+
+var ErrNotFound = errors.New("not found")
 
 // SaveJob inserts a Job and its related sources and destinations into the database.
 func SaveJob(db *sql.DB, job *models.Job) error {
@@ -30,28 +33,8 @@ func SaveJob(db *sql.DB, job *models.Job) error {
 	}
 	job.ID = jobID
 
-	for i := range job.Sources {
-		src := &job.Sources[i]
-		_, err := tx.Exec(`
-			INSERT INTO sources (job_id, path, exclusion_rules)
-			VALUES (?, ?, ?)`,
-			jobID, src.Path, src.ExclusionRules,
-		)
-		if err != nil {
-			return fmt.Errorf("insert source: %w", err)
-		}
-	}
-
-	for i := range job.Destinations {
-		dst := &job.Destinations[i]
-		_, err := tx.Exec(`
-			INSERT INTO destinations (job_id, path)
-			VALUES (?, ?)`,
-			jobID, dst.Path,
-		)
-		if err != nil {
-			return fmt.Errorf("insert destination: %w", err)
-		}
+	if err := insertChildren(tx, jobID, job); err != nil {
+		return err
 	}
 
 	return tx.Commit()
@@ -64,8 +47,8 @@ func GetJobByID(db *sql.DB, id int64) (*models.Job, error) {
 		FROM jobs WHERE id = ?`, id)
 	err := row.Scan(&job.ID, &job.Name, &job.Description, &job.StorageStrategy, &job.RetentionPolicy, &job.RetryCount, &job.RetryWait, &job.LogOutput, &job.CreatedAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("job not found")
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
 		}
 		return nil, err
 	}
@@ -143,8 +126,6 @@ func GetAllJobs(db *sql.DB) ([]models.Job, error) {
 		}
 		jobs = append(jobs, job)
 	}
-	// Note: We could load sources/destinations here, but often a list endpoint skips them.
-	// For simplicity, let's just return the jobs without them, or we can fetch them.
 	return jobs, nil
 }
 
@@ -176,8 +157,8 @@ func GetRunByID(db *sql.DB, id int64) (*models.Run, error) {
 	row := db.QueryRow("SELECT id, job_id, status, started_at, completed_at, duration_seconds, bytes_transferred FROM runs WHERE id = ?", id)
 	err := row.Scan(&r.ID, &r.JobID, &r.Status, &r.StartedAt, &r.CompletedAt, &r.DurationSeconds, &r.BytesTransferred)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("run not found")
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
 		}
 		return nil, err
 	}
@@ -229,29 +210,24 @@ func UpdateJob(db *sql.DB, job *models.Job) error {
 		return err
 	}
 
-	for i := range job.Sources {
-		src := &job.Sources[i]
-		_, err := tx.Exec(`
-			INSERT INTO sources (job_id, path, exclusion_rules)
-			VALUES (?, ?, ?)`,
-			job.ID, src.Path, src.ExclusionRules,
-		)
-		if err != nil {
-			return fmt.Errorf("insert source: %w", err)
-		}
-	}
-
-	for i := range job.Destinations {
-		dst := &job.Destinations[i]
-		_, err := tx.Exec(`
-			INSERT INTO destinations (job_id, path)
-			VALUES (?, ?)`,
-			job.ID, dst.Path,
-		)
-		if err != nil {
-			return fmt.Errorf("insert destination: %w", err)
-		}
+	if err := insertChildren(tx, job.ID, job); err != nil {
+		return err
 	}
 
 	return tx.Commit()
+}
+
+func insertChildren(tx *sql.Tx, jobID int64, job *models.Job) error {
+	for _, src := range job.Sources {
+		if _, err := tx.Exec(`INSERT INTO sources (job_id, path, exclusion_rules) VALUES (?, ?, ?)`,
+			jobID, src.Path, src.ExclusionRules); err != nil {
+			return fmt.Errorf("insert source: %w", err)
+		}
+	}
+	for _, dst := range job.Destinations {
+		if _, err := tx.Exec(`INSERT INTO destinations (job_id, path) VALUES (?, ?)`, jobID, dst.Path); err != nil {
+			return fmt.Errorf("insert destination: %w", err)
+		}
+	}
+	return nil
 }
