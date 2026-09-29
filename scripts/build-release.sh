@@ -30,6 +30,8 @@ build() { # os arch
 for arch in amd64 arm64; do
   build linux "$arch"
   cp installer/linux/install.sh installer/linux/uninstall.sh "dist/linux-$arch/"
+  # The packaged scripts must be executable whatever mode Git checked them out with.
+  chmod 0755 "dist/linux-$arch/install.sh" "dist/linux-$arch/uninstall.sh" "dist/linux-$arch/safora"
   tar -C "dist/linux-$arch" -czf "dist/safora-$version-linux-$arch.tar.gz" .
 done
 
