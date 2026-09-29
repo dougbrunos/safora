@@ -19,7 +19,7 @@ func ParseBatchScript(filePath string) (*models.Job, error) {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	
+
 	job := &models.Job{
 		Name:            "Imported Job",
 		StorageStrategy: "Date-Stamped Mirroring",
@@ -29,19 +29,19 @@ func ParseBatchScript(filePath string) (*models.Job, error) {
 	var hasYesterday bool
 	var dateFormat string
 	var dynamicVarName string
-	
+
 	vars := make(map[string]string)
 
 	robocopyCmds := []string{}
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		
+
 		lineExpanded := line
 		for k, v := range vars {
 			lineExpanded = strings.ReplaceAll(lineExpanded, "%"+k+"%", v)
 		}
-		
+
 		// Detect yesterday logic
 		if strings.Contains(strings.ToLower(lineExpanded), "dateadd") && strings.Contains(lineExpanded, "-1") {
 			hasYesterday = true
@@ -53,7 +53,7 @@ func ParseBatchScript(filePath string) (*models.Job, error) {
 			if len(parts) == 2 {
 				varName := parts[0]
 				varVal := parts[1]
-				
+
 				// Keep track of all variables
 				vars[varName] = varVal
 
@@ -78,13 +78,13 @@ func ParseBatchScript(filePath string) (*models.Job, error) {
 				}
 				vars[dynamicVarName] = templateVar
 			}
-			
+
 			// Simple variable expansion
 			for k, v := range vars {
 				// Also try expanding inside other variables recursively if needed, but simple is fine
 				line = strings.ReplaceAll(line, "%"+k+"%", v)
 			}
-			
+
 			// Run a second pass to expand nested variables like SOURCE which uses YESTERDAY
 			for k, v := range vars {
 				vExpanded := v

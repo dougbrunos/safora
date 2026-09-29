@@ -9,15 +9,15 @@ import (
 
 	"github.com/gen2brain/beeep"
 	"github.com/robfig/cron/v3"
-	
+
 	"safora/internal/backup"
 	"safora/internal/database"
 )
 
 type Runner struct {
-	db       *sql.DB
-	cron     *cron.Cron
-	engine   *backup.DefaultEngine
+	db     *sql.DB
+	cron   *cron.Cron
+	engine *backup.DefaultEngine
 }
 
 func NewRunner(db *sql.DB) *Runner {
@@ -29,11 +29,11 @@ func NewRunner(db *sql.DB) *Runner {
 }
 
 func (r *Runner) Start(ctx context.Context) {
-	// Schedule jobs (For MVP we assume jobs might have a cron schedule, but let's just 
-	// pull them from DB. The schema doesn't have a schedule field yet. 
+	// Schedule jobs (For MVP we assume jobs might have a cron schedule, but let's just
+	// pull them from DB. The schema doesn't have a schedule field yet.
 	// We'll mock a default schedule or add the watcher)
 
-	// Note: since schema lacks a cron string, we just set a periodic 1-hour dummy trigger 
+	// Note: since schema lacks a cron string, we just set a periodic 1-hour dummy trigger
 	// for jobs to prove the scheduler works for the MVP, or we can just focus on the watcher.
 	r.cron.AddFunc("@hourly", func() {
 		log.Println("Running scheduled jobs...")
@@ -42,7 +42,7 @@ func (r *Runner) Start(ctx context.Context) {
 			r.executeJob(j.ID)
 		}
 	})
-	
+
 	r.cron.Start()
 
 	// Drive watcher
@@ -55,7 +55,7 @@ func (r *Runner) Start(ctx context.Context) {
 func (r *Runner) watchDrives(ctx context.Context) {
 	// Polling for drive arrival (naive approach for MVP)
 	// Checks destinations of all jobs to see if they just appeared.
-	
+
 	knownDrives := make(map[string]bool)
 
 	for {
@@ -67,7 +67,7 @@ func (r *Runner) watchDrives(ctx context.Context) {
 			if err != nil {
 				continue
 			}
-			
+
 			for _, job := range jobs {
 				// Re-fetch job with destinations
 				fullJob, err := database.GetJobByID(r.db, job.ID)
@@ -87,7 +87,7 @@ func (r *Runner) watchDrives(ctx context.Context) {
 
 					if drive != "" {
 						if !knownDrives[drive] {
-							// For MVP, we assume if it's evaluated here, it just "arrived" 
+							// For MVP, we assume if it's evaluated here, it just "arrived"
 							// In a real implementation we'd check os.Stat to see if it's actually mounted
 							knownDrives[drive] = true
 							log.Printf("Drive/Mount %s detected, triggering job %d", drive, job.ID)
@@ -108,7 +108,7 @@ func (r *Runner) executeJob(jobID int64) {
 	}
 
 	run, err := r.engine.Run(context.Background(), job)
-	
+
 	if err != nil || run.Status == "failed" {
 		beeep.Alert("Safora Backup Failed", fmt.Sprintf("Job %s failed: %v", job.Name, err), "")
 	} else {

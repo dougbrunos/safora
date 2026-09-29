@@ -85,7 +85,7 @@ func (s *DateStampedMirroring) mirror(ctx context.Context, src, dst, exclusions 
 		if err != nil {
 			return err
 		}
-		
+
 		if relPath == "." {
 			return nil
 		}
@@ -136,7 +136,7 @@ func (s *DateStampedMirroring) copyFileWithRetry(src, dst string, retries, waitS
 		if attempt > 0 {
 			time.Sleep(time.Duration(waitSecs) * time.Second)
 		}
-		
+
 		bytes, err := copyFile(src, dst)
 		if err == nil {
 			return bytes, nil
@@ -167,7 +167,7 @@ func parseExclusions(excl string) ([]string, []string) {
 	if excl == "" {
 		return dirs, files
 	}
-	
+
 	parts := strings.Split(excl, ";")
 	for _, p := range parts {
 		if strings.HasPrefix(p, "DIR:") {

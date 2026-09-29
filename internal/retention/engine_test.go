@@ -50,11 +50,11 @@ func TestRetentionLock_SingleCopy(t *testing.T) {
 
 func TestRetention_KeepRuns(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	d1 := filepath.Join(tempDir, "copy1")
 	d2 := filepath.Join(tempDir, "copy2")
 	d3 := filepath.Join(tempDir, "copy3")
-	
+
 	os.MkdirAll(d1, 0755)
 	os.MkdirAll(d2, 0755)
 	os.MkdirAll(d3, 0755)
@@ -89,10 +89,10 @@ func TestRetention_KeepRuns(t *testing.T) {
 
 func TestRetention_KeepDays(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	d1 := filepath.Join(tempDir, "copy_old")
 	d2 := filepath.Join(tempDir, "copy_new")
-	
+
 	os.MkdirAll(d1, 0755)
 	os.MkdirAll(d2, 0755)
 

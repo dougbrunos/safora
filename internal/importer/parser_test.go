@@ -8,7 +8,7 @@ import (
 
 func TestParseBatchScript(t *testing.T) {
 	fixturePath := filepath.Join("..", "..", ".scratch", "mvp-foundation", "fixtures", "sample.bat")
-	
+
 	// Ensure the fixture exists
 	if _, err := os.Stat(fixturePath); os.IsNotExist(err) {
 		t.Skipf("Fixture not found at %s", fixturePath)
