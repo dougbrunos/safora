@@ -24,6 +24,6 @@ jobs:
       # The Go build embeds ui/web/dist, so the frontend is built first.
       - name: Frontend
         working-directory: ui/web
-        run: npm ci && npm run build
+        run: npm ci && npm run build && npm test
       - name: Go vet and tests
         run: go vet ./... && go test ./...

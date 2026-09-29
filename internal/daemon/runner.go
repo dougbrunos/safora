@@ -153,7 +153,7 @@ func (r *Runner) executeJob(jobID int64) {
 	}
 
 	run, err := r.engine.Run(context.Background(), job)
-	if errors.Is(err, backup.ErrJobBusy) {
+	if errors.Is(err, backup.ErrJobBusy) || (run != nil && run.Status == "cancelled") {
 		return
 	}
 

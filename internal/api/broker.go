@@ -37,6 +37,11 @@ func (b *Broker) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		b.mu.Unlock()
 	}()
 
+	// Send the headers now: EventSource only reports the connection as open (and the
+	// dashboard shows "Live") once the first bytes arrive.
+	fmt.Fprint(rw, ": connected\n\n")
+	flusher.Flush()
+
 	// A comment line every 15s keeps idle connections alive (long copies can be silent).
 	keepAlive := time.NewTicker(15 * time.Second)
 	defer keepAlive.Stop()

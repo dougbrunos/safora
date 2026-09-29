@@ -202,6 +202,7 @@ const pt: Manual = {
         { p: "Sem retenção, o destino enche. Depois de cada execução, o Safora pode apagar as cópias antigas. Você escolhe:" },
         {
           ul: [
+            "Nunca apagar (padrão em tarefas novas): guarda todas as cópias. É a escolha segura; você apaga manualmente quando precisar de espaço.",
             "Manter as últimas N cópias (3, 5, 10 ou 30): guarda as N pastas mais recentes.",
             "Manter os últimos N dias (7, 30 ou 90): apaga as pastas mais antigas que N dias.",
           ],
@@ -228,7 +229,7 @@ const pt: Manual = {
           ul: [
             "Arquivos que não mudaram desde a última cópia são pulados. Só o que é novo ou foi alterado é copiado, e os arquivos alterados substituem a versão antiga.",
             "Arquivos apagados na origem continuam no destino, a menos que você ligue Espelhar exclusões.",
-            "Se um arquivo não puder ser copiado, o Safora tenta mais 3 vezes, esperando 30 segundos entre as tentativas. Se ainda falhar, copia o resto e termina a execução com alerta.",
+            "Se um arquivo não puder ser copiado (por exemplo, está aberto em outro programa), o Safora tenta de novo, esperando entre as tentativas. Por padrão são 3 tentativas com 30 segundos de espera; ambos os valores podem ser mudados na aba Opções. Se ainda falhar, copia o resto e termina a execução com alerta.",
           ],
         },
         {
@@ -255,11 +256,13 @@ const pt: Manual = {
               ["Sucesso", "Tudo o que precisava ser copiado foi copiado, ou já estava atualizado."],
               ["Alerta", "A execução terminou, mas com um problema parcial: uma variável inválida na origem, um arquivo que não pôde ser copiado ou uma diferença encontrada na verificação. Abra o log para ver."],
               ["Falhou", "Algo impediu a cópia, como uma origem que não existe, sem permissão de leitura, ou um destino que não pôde ser criado. Uma execução interrompida porque o Safora foi reiniciado também aparece como falha."],
+              ["Cancelada", "Você interrompeu a execução pelo botão Cancelar execução. O que já foi copiado permanece, e nenhuma cópia antiga é apagada pela retenção."],
               ["Em execução", "Ainda em andamento."],
             ],
           },
         },
         { p: "Telemetria ao vivo (aba Painel): mostra em tempo real o que está sendo feito, com horário, nível (INFO, WARNING, ERROR) e mensagem. Ela é limpa sozinha quando uma nova execução começa, e o botão Limpar esvazia manualmente. O indicador Ao vivo mostra se o painel está conectado ao Safora." },
+        { p: "Cancelar: enquanto uma tarefa está em execução, o botão Executar agora do card vira Cancelar execução. A execução para em instantes, inclusive no meio de um arquivo grande ou de uma espera por arquivo travado. Sem esse botão, uma tarefa presa em arquivos bloqueados só terminaria ao reiniciar o Safora." },
         { p: "Histórico: lista as 100 execuções mais recentes. Filtre por resultado e por tarefa, e clique em uma linha para ver o log completo daquela execução. Ao terminar, o Safora também pode mostrar uma notificação na área de trabalho." },
       ],
     },
@@ -298,7 +301,7 @@ const pt: Manual = {
       id: "import",
       title: "Importando scripts antigos",
       blocks: [
-        { p: "Se você já faz backup com um script do Windows (`.bat` com `robocopy`), não precisa recriar tudo. Em Tarefas, clique em Importar script e cole o conteúdo. O Safora identifica origem, destino, pastas e arquivos ignorados, número de tentativas e variáveis de data, e cria uma tarefa chamada Imported Job com retenção de 30 dias." },
+        { p: "Se você já faz backup com um script do Windows (`.bat` com `robocopy`), não precisa recriar tudo. Em Tarefas, clique em Importar script e cole o conteúdo. O Safora identifica origem, destino, pastas e arquivos ignorados, número de tentativas e variáveis de data, e cria uma tarefa chamada Imported Job, sem apagar cópias antigas. Scripts que montam a data em partes (DD, MM e YY em variáveis separadas) e comandos com `/MIR` também são reconhecidos: `/MIR` liga a opção Espelhar exclusões." },
         {
           ul: [
             "Abra a tarefa criada, dê um nome melhor e defina o agendamento.",
@@ -341,7 +344,6 @@ const pt: Manual = {
             "Os destinos são pastas do computador. Não há envio direto para serviços de nuvem; use uma pasta sincronizada ou uma unidade de rede conectada.",
             "Não existe função de restauração no painel. As cópias são arquivos comuns: para recuperar, copie os arquivos de volta pelo gerenciador de arquivos.",
             "O VSS (cópia de arquivos em uso no Windows) ainda não está disponível.",
-            "O número de tentativas (3) e a espera (30 segundos) não podem ser alterados pelo painel.",
             "O Histórico mostra as 100 execuções mais recentes.",
             "O painel só abre no computador onde o Safora está instalado.",
           ],
@@ -531,6 +533,7 @@ const en: Manual = {
         { p: "Without retention, the destination fills up. After each run, Safora can delete old copies. You choose:" },
         {
           ul: [
+            "Never delete (default for new jobs): keeps every copy. This is the safe choice; you delete manually when you need space.",
             "Keep last N copies (3, 5, 10 or 30): keeps the N most recent folders.",
             "Keep last N days (7, 30 or 90): deletes folders older than N days.",
           ],
@@ -557,7 +560,7 @@ const en: Manual = {
           ul: [
             "Files that have not changed since the last copy are skipped. Only what is new or changed is copied, and changed files replace the old version.",
             "Files deleted from the source stay in the destination unless you turn on Mirror deletions.",
-            "If a file cannot be copied, Safora retries 3 more times, waiting 30 seconds between attempts. If it still fails, it copies the rest and ends the run with a warning.",
+            "If a file cannot be copied (for example, it is open in another program), Safora retries, waiting between attempts. By default that is 3 retries with a 30 second wait; both values can be changed on the Options tab. If it still fails, it copies the rest and ends the run with a warning.",
           ],
         },
         {
@@ -584,11 +587,13 @@ const en: Manual = {
               ["Success", "Everything that needed copying was copied, or was already up to date."],
               ["Warning", "The run finished, but with a partial problem: an invalid variable in the source, a file that could not be copied or a difference found during verification. Open the log to see."],
               ["Failed", "Something prevented the copy, such as a source that does not exist, no read permission, or a destination that could not be created. A run interrupted because Safora was restarted also shows as failed."],
+              ["Cancelled", "You stopped the run with the Cancel run button. What was already copied stays, and retention deletes no old copies."],
               ["Running", "Still in progress."],
             ],
           },
         },
         { p: "Live telemetry (Dashboard tab): shows in real time what is being done, with time, level (INFO, WARNING, ERROR) and message. It clears itself when a new run starts, and the Clear button empties it manually. The Live indicator shows whether the dashboard is connected to Safora." },
+        { p: "Cancelling: while a job is running, the Run Now button on its card becomes Cancel run. The run stops within moments, even in the middle of a large file or while waiting to retry a locked file. Without this button, a job stuck on locked files would only end by restarting Safora." },
         { p: "History: lists the 100 most recent runs. Filter by result and by job, and click a row to see the full log of that run. When it finishes, Safora may also show a desktop notification." },
       ],
     },
@@ -627,7 +632,7 @@ const en: Manual = {
       id: "import",
       title: "Importing old scripts",
       blocks: [
-        { p: "If you already back up with a Windows script (a `.bat` using `robocopy`), you do not need to rebuild everything. In Jobs, click Import Script and paste the content. Safora identifies the source, destination, skipped folders and files, number of retries and date variables, and creates a job called Imported Job with 30-day retention." },
+        { p: "If you already back up with a Windows script (a `.bat` using `robocopy`), you do not need to rebuild everything. In Jobs, click Import Script and paste the content. Safora identifies the source, destination, skipped folders and files, number of retries and date variables, and creates a job called Imported Job that does not delete old copies. Scripts that build the date from separate parts (DD, MM and YY in separate variables) and commands with `/MIR` are also recognized: `/MIR` turns on Mirror deletions." },
         {
           ul: [
             "Open the created job, give it a better name and set the schedule.",
@@ -670,7 +675,6 @@ const en: Manual = {
             "Destinations are folders on the computer. There is no direct upload to cloud services; use a synced folder or a connected network drive.",
             "There is no restore function in the dashboard. Copies are ordinary files: to recover, copy the files back with the file manager.",
             "VSS (copying files in use on Windows) is not available yet.",
-            "The number of retries (3) and the wait (30 seconds) cannot be changed in the dashboard.",
             "History shows the 100 most recent runs.",
             "The dashboard only opens on the computer where Safora is installed.",
           ],

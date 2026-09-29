@@ -20,7 +20,7 @@ var ErrJobBusy = errors.New("job already running")
 type DefaultEngine struct {
 	db          *sql.DB
 	logCallback func(level, msg string)
-	running     sync.Map // job ID -> struct{}
+	running     sync.Map // job ID -> context.CancelFunc of the Run in progress
 }
 
 func NewDefaultEngine(db *sql.DB) *DefaultEngine {
@@ -37,8 +37,19 @@ func (e *DefaultEngine) Busy(jobID int64) bool {
 	return ok
 }
 
+// Cancel stops the Run of the Job in progress and reports whether there was one.
+func (e *DefaultEngine) Cancel(jobID int64) bool {
+	cancel, ok := e.running.Load(jobID)
+	if ok {
+		cancel.(context.CancelFunc)()
+	}
+	return ok
+}
+
 func (e *DefaultEngine) Run(ctx context.Context, job *models.Job) (*models.Run, error) {
-	if _, loaded := e.running.LoadOrStore(job.ID, struct{}{}); loaded {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	if _, loaded := e.running.LoadOrStore(job.ID, cancel); loaded {
 		msg := fmt.Sprintf("Job %d (%s) is already running; start refused", job.ID, job.Name)
 		log.Print(msg)
 		if e.logCallback != nil {
@@ -66,6 +77,10 @@ func (e *DefaultEngine) Run(ctx context.Context, job *models.Job) (*models.Run, 
 	}
 
 	result, err := NewDateStampedMirroring(e.db, run.ID, e.logCallback).Run(ctx, job)
+	if ctx.Err() != nil {
+		e.cancelRun(run, result)
+		return run, nil
+	}
 	if err != nil {
 		e.failRun(run, err)
 		return run, err
@@ -97,6 +112,21 @@ func (e *DefaultEngine) Run(ctx context.Context, job *models.Job) (*models.Run, 
 	}
 
 	return run, nil
+}
+
+// cancelRun records a Run stopped by the user. Retention is skipped: an incomplete
+// copy must never be the reason older copies are deleted.
+func (e *DefaultEngine) cancelRun(run *models.Run, partial *models.Run) {
+	now := time.Now()
+	run.CompletedAt = &now
+	run.DurationSeconds = int64(now.Sub(run.StartedAt).Seconds())
+	run.Status = "cancelled"
+	if partial != nil {
+		run.BytesTransferred = partial.BytesTransferred
+		run.FilesProcessed = partial.FilesProcessed
+	}
+	e.log(run.ID, "WARNING", "Run cancelled")
+	_ = database.SaveRun(e.db, run)
 }
 
 func (e *DefaultEngine) failRun(run *models.Run, err error) {

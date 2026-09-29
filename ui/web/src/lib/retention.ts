@@ -1,6 +1,10 @@
 // Retention policies are stored as "keep <n> <runs|copies|days>"; older dashboards saved "KEEP 5".
+// "none" is the form's value for an empty policy: never delete anything.
+export const NO_RETENTION = "none"
+
 export const normalizeRetention = (p?: string) => {
-  const parts = (p || "keep 5 runs").toLowerCase().trim().split(/\s+/)
+  if (!p) return NO_RETENTION
+  const parts = p.toLowerCase().trim().split(/\s+/)
   return (parts.length === 2 ? [...parts, "runs"] : parts).join(" ")
 }
 

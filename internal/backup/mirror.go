@@ -43,6 +43,9 @@ func (s *DateStampedMirroring) Run(ctx context.Context, job *models.Job) (*model
 	s.mismatches, s.failedFiles, s.skipped, s.deleted = 0, 0, 0, 0
 
 	for _, dst := range job.Destinations {
+		if ctx.Err() != nil {
+			return result, nil
+		}
 		resolvedDst, err := pathresolver.Resolve(dst.Path)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve destination %s: %w", dst.Path, err)
@@ -54,6 +57,9 @@ func (s *DateStampedMirroring) Run(ctx context.Context, job *models.Job) (*model
 
 		usedNames := map[string]bool{}
 		for _, src := range job.Sources {
+			if ctx.Err() != nil {
+				return result, nil
+			}
 			resolvedSrc, err := pathresolver.Resolve(src.Path)
 			if err != nil {
 				s.log("ERROR", fmt.Errorf("Failed to resolve source %s: %w", src.Path, err))
@@ -71,7 +77,7 @@ func (s *DateStampedMirroring) Run(ctx context.Context, job *models.Job) (*model
 			bytes, files, err := s.mirror(ctx, resolvedSrc, target, src.ExclusionRules, job.RetryCount, job.RetryWait)
 			result.BytesTransferred += bytes
 			result.FilesProcessed += files
-			if err != nil {
+			if err != nil && ctx.Err() == nil {
 				s.log("ERROR", fmt.Errorf("Mirroring failed for %s -> %s: %w", resolvedSrc, target, err))
 				result.Status = "failed"
 				// We don't return early to allow other sources/destinations to try
@@ -161,7 +167,7 @@ func (s *DateStampedMirroring) mirror(ctx context.Context, src, dst, exclusions 
 			return err
 		}
 
-		copiedBytes, err := s.copyFileWithRetry(path, targetPath, retryCount, retryWait)
+		copiedBytes, err := s.copyFileWithRetry(ctx, path, targetPath, retryCount, retryWait)
 		if err != nil {
 			s.failedFiles++
 			s.log("WARNING", fmt.Errorf("Failed to copy %s: %w", path, err))
@@ -262,25 +268,45 @@ func matchesName(rules []string, name string, glob bool) bool {
 	return false
 }
 
-func (s *DateStampedMirroring) copyFileWithRetry(src, dst string, retries, waitSecs int) (int64, error) {
+func (s *DateStampedMirroring) copyFileWithRetry(ctx context.Context, src, dst string, retries, waitSecs int) (int64, error) {
 	var lastErr error
 	for attempt := 0; attempt <= retries; attempt++ {
 		if attempt > 0 {
-			time.Sleep(time.Duration(waitSecs) * time.Second)
+			select {
+			case <-ctx.Done():
+				return 0, ctx.Err()
+			case <-time.After(time.Duration(waitSecs) * time.Second):
+			}
 		}
 
-		bytes, err := copyFile(src, dst)
+		bytes, err := copyFile(ctx, src, dst)
 		if err == nil {
 			return bytes, nil
 		}
 		lastErr = err
+		if ctx.Err() != nil {
+			break
+		}
 	}
 	return 0, lastErr
 }
 
+// ctxReader makes a copy in progress stop as soon as the Run is cancelled.
+type ctxReader struct {
+	ctx context.Context
+	r   io.Reader
+}
+
+func (c ctxReader) Read(p []byte) (int, error) {
+	if err := c.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return c.r.Read(p)
+}
+
 // copyFile copies src to dst and gives dst the modification time of src, which
-// is what unchanged() compares on the next Run.
-func copyFile(src, dst string) (int64, error) {
+// is what unchanged() compares on the next Run. A cancelled copy leaves no partial file.
+func copyFile(ctx context.Context, src, dst string) (int64, error) {
 	in, err := os.Open(src)
 	if err != nil {
 		return 0, err
@@ -296,11 +322,14 @@ func copyFile(src, dst string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	n, err := io.Copy(out, in)
+	n, err := io.Copy(out, ctxReader{ctx, in})
 	if cerr := out.Close(); err == nil {
 		err = cerr
 	}
 	if err != nil {
+		if ctx.Err() != nil {
+			os.Remove(dst)
+		}
 		return n, err
 	}
 	return n, os.Chtimes(dst, info.ModTime(), info.ModTime())

@@ -121,3 +121,67 @@ func TestRetention_KeepDays(t *testing.T) {
 		t.Errorf("Expected copy_old to be pruned, got %s", pruned[0])
 	}
 }
+
+// threeCopies creates copy1 (oldest) .. copy3 (newest) under a temp dir and
+// returns a Job whose destination is that dir plus a date template.
+func threeCopies(t *testing.T, policy string) (*models.Job, string) {
+	t.Helper()
+	dir := t.TempDir()
+	base := time.Now().Add(-3 * time.Hour)
+	for i, name := range []string{"copy1", "copy2", "copy3"} {
+		p := filepath.Join(dir, name)
+		os.MkdirAll(p, 0o755)
+		mt := base.Add(time.Duration(i) * time.Hour)
+		os.Chtimes(p, mt, mt)
+	}
+	return &models.Job{
+		RetentionPolicy: policy,
+		Destinations:    []models.Destination{{Path: filepath.Join(dir, "{today}")}},
+	}, dir
+}
+
+func TestRetention_EmptyPolicyNeverDeletes(t *testing.T) {
+	job, dir := threeCopies(t, "")
+	pruned, err := NewEngine().Prune(context.Background(), job, "success")
+	if err != nil || len(pruned) != 0 {
+		t.Fatalf("pruned=%v err=%v", pruned, err)
+	}
+	for _, name := range []string{"copy1", "copy2", "copy3"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Errorf("%s was deleted by an empty policy", name)
+		}
+	}
+}
+
+func TestRetention_LegacyUppercasePolicy(t *testing.T) {
+	job, dir := threeCopies(t, "KEEP 2") // what older dashboards saved
+	if _, err := NewEngine().Prune(context.Background(), job, "success"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "copy1")); !os.IsNotExist(err) {
+		t.Error("the oldest copy should be pruned by KEEP 2")
+	}
+	for _, name := range []string{"copy2", "copy3"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Errorf("%s must be kept", name)
+		}
+	}
+}
+
+func TestRetentionLock_CancelledRun(t *testing.T) {
+	job, dir := threeCopies(t, "keep 1 runs")
+	if _, err := NewEngine().Prune(context.Background(), job, "cancelled"); err == nil {
+		t.Error("a cancelled run must not prune (retention lock)")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "copy1")); err != nil {
+		t.Error("nothing may be deleted after a cancelled run")
+	}
+}
+
+func TestRetention_NewestIsNeverDeleted(t *testing.T) {
+	job, dir := threeCopies(t, "keep 0 runs")
+	NewEngine().Prune(context.Background(), job, "success")
+	if _, err := os.Stat(filepath.Join(dir, "copy3")); err != nil {
+		t.Error("the newest copy must survive even keep 0")
+	}
+}

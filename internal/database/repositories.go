@@ -10,7 +10,8 @@ import (
 
 var ErrNotFound = errors.New("not found")
 
-const jobColumns = "id, name, description, storage_strategy, retention_policy, retry_count, retry_wait, log_output, schedule, verify_integrity, sync_deletions, created_at"
+// Nullable text columns are COALESCEd: one NULL must not make the whole list unreadable.
+const jobColumns = "id, name, COALESCE(description, ''), storage_strategy, COALESCE(retention_policy, ''), COALESCE(retry_count, 0), COALESCE(retry_wait, 0), COALESCE(log_output, ''), schedule, verify_integrity, sync_deletions, created_at"
 
 func scanJob(row interface{ Scan(...any) error }, j *models.Job) error {
 	return row.Scan(&j.ID, &j.Name, &j.Description, &j.StorageStrategy, &j.RetentionPolicy, &j.RetryCount, &j.RetryWait, &j.LogOutput, &j.Schedule, &j.VerifyIntegrity, &j.SyncDeletions, &j.CreatedAt)
@@ -56,7 +57,7 @@ func GetJobByID(db *sql.DB, id int64) (*models.Job, error) {
 		return nil, err
 	}
 
-	rows, err := db.Query("SELECT id, job_id, path, exclusion_rules FROM sources WHERE job_id = ? ORDER BY id", id)
+	rows, err := db.Query("SELECT id, job_id, path, COALESCE(exclusion_rules, '') FROM sources WHERE job_id = ? ORDER BY id", id)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +163,7 @@ func GetAllJobs(db *sql.DB) ([]models.Job, error) {
 
 	// Attach Sources and Destinations so list consumers (the edit form, the
 	// schedule sync) see complete Jobs without one query per Job.
-	srcRows, err := db.Query("SELECT id, job_id, path, exclusion_rules FROM sources ORDER BY id")
+	srcRows, err := db.Query("SELECT id, job_id, path, COALESCE(exclusion_rules, '') FROM sources ORDER BY id")
 	if err != nil {
 		return nil, err
 	}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   Play, Plus, Terminal, Pencil, Trash2, Eraser, LayoutDashboard, CalendarClock, HardDrive,
-  FolderInput, CheckCircle2, XCircle, TriangleAlert, LoaderCircle, Clock, ShieldCheck, Copy,
+  FolderInput, CheckCircle2, XCircle, TriangleAlert, LoaderCircle, Ban, Clock, ShieldCheck, Copy,
   Sun, Moon, Monitor, Server, History as HistoryIcon, ChevronDown, BookOpen,
 } from 'lucide-react';
 
@@ -26,6 +26,7 @@ const STATUS = {
   failed: { tone: 'bg-danger-soft text-danger', Icon: XCircle },
   warning: { tone: 'bg-warning-soft text-warning', Icon: TriangleAlert },
   running: { tone: 'bg-running-soft text-running', Icon: LoaderCircle },
+  cancelled: { tone: 'bg-muted text-muted-foreground', Icon: Ban },
 } as const;
 
 const fmtBytes = (n: number) => {
@@ -183,6 +184,12 @@ export default function App() {
       const starting = event.data.includes("Starting job");
       const line = { time: new Date().toLocaleTimeString(locale), text: event.data };
       setLiveLog(prev => [...(starting ? [] : prev.slice(-99)), line]);
+      if (event.data.includes("Starting job") || event.data.includes("Run cancelled")) {
+        fetchRuns(); // the job cards show which jobs are running
+      }
+      if (event.data.includes("Run cancelled")) {
+        setProgress(0);
+      }
       if (event.data.includes("finished with status")) {
         setProgress(100);
         setTimeout(() => setProgress(0), 3000);
@@ -225,6 +232,12 @@ export default function App() {
     } else {
       setNotice(`${t('run_failed')} ${res ? await res.text() : ''}`.trim());
     }
+  };
+
+  const handleCancelJob = async (id: number) => {
+    const res = await fetch(`/api/jobs/${id}/cancel`, { method: 'POST' }).catch(() => null);
+    setNotice(res?.status === 204 ? t('cancel_sent') : t('not_running'));
+    setTimeout(fetchRuns, 800);
   };
 
   const handleDeleteJob = async (id: number) => {
@@ -272,6 +285,7 @@ export default function App() {
 
   const jobName = (id: number) => jobs.find(j => j.ID === id)?.Name ?? `${t('job_n')}${id}`;
   const lastRun = (id: number) => runs.find(r => r.JobID === id);
+  const runningJobs = new Set(runs.filter(r => r.Status === 'running').map(r => r.JobID));
   const filteredRuns = runs.filter(r =>
     (historyStatus === 'all' || r.Status === historyStatus) &&
     (historyJob === 'all' || String(r.JobID) === historyJob));
@@ -456,7 +470,9 @@ export default function App() {
                         <div className="min-w-0">
                           <h3 className="truncate text-lg font-semibold leading-tight">{job.Name}</h3>
                           <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                            {last ? (
+                            {runningJobs.has(job.ID) ? (
+                              <StatusBadge status="running" />
+                            ) : last ? (
                               <>
                                 <span className={cn('h-2 w-2 rounded-full', last.Status === 'success' ? 'bg-success' : last.Status === 'failed' ? 'bg-danger' : last.Status === 'running' ? 'bg-running' : 'bg-warning')} />
                                 {t('last_run')}: {fmtAgo(last.StartedAt, locale)}
@@ -506,9 +522,15 @@ export default function App() {
                         )}
                       </div>
 
-                      <Button className="w-full gap-2" onClick={() => handleRunJob(job.ID)}>
-                        <Play size={16} /> {t('run_now')}
-                      </Button>
+                      {runningJobs.has(job.ID) ? (
+                        <Button variant="outline" className="w-full gap-2 border-danger/40 text-danger hover:bg-danger-soft" onClick={() => handleCancelJob(job.ID)}>
+                          <Ban size={16} /> {t('cancel_run')}
+                        </Button>
+                      ) : (
+                        <Button className="w-full gap-2" onClick={() => handleRunJob(job.ID)}>
+                          <Play size={16} /> {t('run_now')}
+                        </Button>
+                      )}
                     </Card>
                   );
                 })}
@@ -540,7 +562,7 @@ export default function App() {
 
               <div className="flex flex-wrap items-center gap-3">
                 <div className="inline-flex rounded-lg bg-muted p-0.5">
-                  {['all', 'success', 'warning', 'failed'].map((st) => (
+                  {['all', 'success', 'warning', 'failed', 'cancelled'].map((st) => (
                     <button
                       key={st}
                       type="button"

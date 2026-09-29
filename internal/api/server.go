@@ -50,7 +50,13 @@ func NewServer(db *sql.DB, tokenPath string) (*Server, error) {
 // Engine returns the shared backup engine, wired to the Live Stream.
 func (s *Server) Engine() *backup.DefaultEngine { return s.engine }
 
+// Start serves the dashboard and API on addr (a loopback address).
 func (s *Server) Start(addr string) error {
+	return http.ListenAndServe(addr, s.Handler(addr))
+}
+
+// Handler builds the routes wrapped in the Host/Origin/token checks for addr.
+func (s *Server) Handler(addr string) http.Handler {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/jobs", s.handleGetJobs)
@@ -59,6 +65,7 @@ func (s *Server) Start(addr string) error {
 	mux.HandleFunc("GET /api/jobs/{id}", s.handleGetJobByID)
 	mux.HandleFunc("DELETE /api/jobs/{id}", s.handleDeleteJob)
 	mux.HandleFunc("POST /api/jobs/{id}/run", s.handleRunJob)
+	mux.HandleFunc("POST /api/jobs/{id}/cancel", s.handleCancelJob)
 
 	mux.HandleFunc("POST /api/importer/parse", s.handleImporterParse)
 
@@ -70,7 +77,7 @@ func (s *Server) Start(addr string) error {
 	mux.HandleFunc("GET /api/stream", s.broker.ServeHTTP)
 	mux.Handle("/", http.FileServer(ui.GetStaticFS()))
 
-	return http.ListenAndServe(addr, s.secure(addr, mux))
+	return s.secure(addr, mux)
 }
 
 // writeErr maps ErrNotFound to 404 and everything else to 500.
@@ -164,6 +171,20 @@ func (s *Server) handleRunJob(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusAccepted)
 	fmt.Fprintf(w, "{\"message\": \"Job %d triggered in background\"}", id)
+}
+
+// handleCancelJob stops the Run of the Job in progress: 204 when stopped, 409 when nothing is running.
+func (s *Server) handleCancelJob(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	if !s.engine.Cancel(id) {
+		http.Error(w, "job is not running", http.StatusConflict)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) handleImporterParse(w http.ResponseWriter, r *http.Request) {

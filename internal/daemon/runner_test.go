@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -64,4 +65,62 @@ func TestRunner_StartStop(t *testing.T) {
 	cancel()
 
 	// Just verify it doesn't panic
+}
+
+func TestRemovableRoot(t *testing.T) {
+	cases := map[string]string{
+		`E:\Backups\Daily`:               `E:\`,
+		`f:/x`:                           `f:\`,
+		`/media/ana/USB DISK/backups/db`: "/media/ana/USB DISK",
+		`/media/ana`:                     "/media/ana",
+		`/mnt/nas/share/data`:            "/mnt/nas",
+		`/home/ana/backup`:               "",
+		`/srv/data`:                      "",
+		`\\server\share\dir`:             "",
+	}
+	for path, want := range cases {
+		if got := removableRoot(path); got != want {
+			t.Errorf("removableRoot(%q) = %q, want %q", path, got, want)
+		}
+	}
+}
+
+func TestSyncSchedulesFollowsTheJobs(t *testing.T) {
+	db, err := database.InitDB(filepath.Join(t.TempDir(), "t.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	scheduled := &models.Job{Name: "a", StorageStrategy: "Date-Stamped Mirroring", Schedule: "0 2 * * *",
+		Sources: []models.Source{{Path: "s"}}, Destinations: []models.Destination{{Path: "d"}}}
+	manual := &models.Job{Name: "b", StorageStrategy: "Date-Stamped Mirroring",
+		Sources: []models.Source{{Path: "s"}}, Destinations: []models.Destination{{Path: "d"}}}
+	database.SaveJob(db, scheduled)
+	database.SaveJob(db, manual)
+
+	r := NewRunner(db, backup.NewDefaultEngine(db))
+	r.SyncSchedules()
+	if len(r.entries) != 1 || r.entries[scheduled.ID] == 0 {
+		t.Fatalf("only the scheduled job gets a cron entry, got %v", r.entries)
+	}
+
+	// The schedule is removed from the job and added to the other one.
+	scheduled.Schedule = ""
+	database.UpdateJob(db, scheduled)
+	manual.Schedule = "*/15 * * * *"
+	database.UpdateJob(db, manual)
+	r.SyncSchedules()
+	if len(r.entries) != 1 || r.entries[manual.ID] == 0 {
+		t.Fatalf("entries must follow the edited schedules, got %v", r.entries)
+	}
+	if len(r.cron.Entries()) != 1 {
+		t.Errorf("stale cron entries were not removed: %d", len(r.cron.Entries()))
+	}
+
+	database.DeleteJob(db, manual.ID)
+	r.SyncSchedules()
+	if len(r.entries) != 0 {
+		t.Errorf("a deleted job keeps no entry, got %v", r.entries)
+	}
 }

@@ -24,7 +24,7 @@ func NewEngine() *Engine {
 // Prune analyzes the destination and removes old backups based on the retention policy.
 func (e *Engine) Prune(ctx context.Context, job *models.Job, lastRunStatus string) ([]string, error) {
 	// Retention Lock Rule 1: Do not prune if the current run failed
-	if lastRunStatus == "failed" {
+	if lastRunStatus == "failed" || lastRunStatus == "cancelled" {
 		return nil, ErrLocked
 	}
 

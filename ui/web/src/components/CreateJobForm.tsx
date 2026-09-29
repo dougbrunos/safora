@@ -12,7 +12,7 @@ import { FolderBrowser } from "@/components/FolderBrowser"
 import { ScheduleField } from "@/components/ScheduleField"
 import { useI18n } from "@/lib/i18n"
 import { buildRules, parseRules } from "@/lib/rules"
-import { normalizeRetention } from "@/lib/retention"
+import { NO_RETENTION, normalizeRetention } from "@/lib/retention"
 import { cn } from "@/lib/utils"
 
 interface Props {
@@ -77,7 +77,9 @@ export function CreateJobForm({ onSuccess, onCancel, jobToEdit }: Props) {
       path: z.string().min(1, t("err_destination")),
     })).min(1),
     enableVSS: z.boolean().default(false),
-    retention: z.string().default("keep 5 runs"),
+    retention: z.string().default(NO_RETENTION),
+    retryCount: z.number({ message: t("err_number") }).int(t("err_number")).min(0, t("err_number")).max(20, t("err_number")),
+    retryWait: z.number({ message: t("err_number") }).int(t("err_number")).min(0, t("err_number")).max(600, t("err_number")),
     schedule: z.string().default(""),
     verifyIntegrity: z.boolean().default(false),
     syncDeletions: z.boolean().default(false),
@@ -103,6 +105,8 @@ export function CreateJobForm({ onSuccess, onCancel, jobToEdit }: Props) {
         : [{ path: "" }],
       enableVSS: jobToEdit?.Description === "VSS Enabled" || false,
       retention: normalizeRetention(jobToEdit?.RetentionPolicy),
+      retryCount: jobToEdit?.RetryCount ?? 3,
+      retryWait: jobToEdit?.RetryWait ?? 30,
       schedule: jobToEdit?.Schedule || "",
       verifyIntegrity: jobToEdit?.VerifyIntegrity || false,
       syncDeletions: jobToEdit?.SyncDeletions || false,
@@ -121,6 +125,7 @@ export function CreateJobForm({ onSuccess, onCancel, jobToEdit }: Props) {
   const hasDateTemplate = (watch("destinations") || []).some((d: any) => d?.path?.includes("{"))
 
   const retentionOptions = [
+    { value: NO_RETENTION, label: t("keep_all") },
     ...[3, 5, 10, 30].map((n) => ({ value: `keep ${n} runs`, label: t("keep_last").replace("{n}", String(n)) })),
     ...[7, 30, 90].map((n) => ({ value: `keep ${n} days`, label: t("keep_days").replace("{n}", String(n)) })),
   ]
@@ -131,10 +136,10 @@ export function CreateJobForm({ onSuccess, onCancel, jobToEdit }: Props) {
       const payload = {
         Name: data.name,
         StorageStrategy: jobToEdit?.StorageStrategy || "Date-Stamped Mirroring",
-        RetentionPolicy: data.retention,
+        RetentionPolicy: data.retention === NO_RETENTION ? "" : data.retention,
         Description: data.enableVSS ? "VSS Enabled" : "",
-        RetryCount: jobToEdit?.RetryCount || 3,
-        RetryWait: jobToEdit?.RetryWait || 30,
+        RetryCount: data.retryCount,
+        RetryWait: data.retryWait,
         LogOutput: jobToEdit?.LogOutput || "",
         Schedule: data.schedule || "",
         VerifyIntegrity: !!data.verifyIntegrity,
@@ -171,7 +176,7 @@ export function CreateJobForm({ onSuccess, onCancel, jobToEdit }: Props) {
   const tabs: { id: Tab; label: string; hasError: boolean }[] = [
     { id: "general", label: t("tab_general"), hasError: !!errors.name },
     { id: "paths", label: t("tab_paths"), hasError: !!(errors.sources || errors.destinations) },
-    { id: "options", label: t("tab_options"), hasError: false },
+    { id: "options", label: t("tab_options"), hasError: !!(errors.retryCount || errors.retryWait) },
   ]
 
   const pathRow = (kind: "sources" | "destinations", i: number, onRemove: () => void, canRemove: boolean) => {
@@ -289,7 +294,23 @@ export function CreateJobForm({ onSuccess, onCancel, jobToEdit }: Props) {
                   ))}
                 </SelectContent>
               </Select>
-              {!hasDateTemplate && <p className="text-xs text-amber-600 dark:text-amber-500">{t("retention_help")}</p>}
+              {retention !== NO_RETENTION && !hasDateTemplate && <p className="text-xs text-amber-600 dark:text-amber-500">{t("retention_help")}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="retryCount">{t("retry_count")}</Label>
+                  <Input id="retryCount" type="number" min={0} max={20} {...register("retryCount", { valueAsNumber: true })} />
+                  {errors.retryCount && <p className="text-sm text-destructive">{errors.retryCount.message}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="retryWait">{t("retry_wait")}</Label>
+                  <Input id="retryWait" type="number" min={0} max={600} {...register("retryWait", { valueAsNumber: true })} />
+                  {errors.retryWait && <p className="text-sm text-destructive">{errors.retryWait.message}</p>}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">{t("retry_help")}</p>
             </div>
 
             <div className="space-y-2">

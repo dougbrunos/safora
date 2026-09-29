@@ -4,11 +4,29 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"safora/internal/models"
 )
+
+var (
+	// A run of date parts joined by at most one separator: %DD%-%MM%-%YY%.
+	dateRunRe = regexp.MustCompile(`(?i)%(?:DD|MM|YYYY|YY)%(?:[^%\\/:*?"<>| ]?%(?:DD|MM|YYYY|YY)%)*`)
+	dateTokRe = regexp.MustCompile(`(?i)%(DD|MM|YYYY|YY)%`)
+	// DateAdd("d", -1, Date): how many days the script shifts the date by.
+	dateAddRe = regexp.MustCompile(`(?i)DateAdd\(\s*"d"\s*,\s*(-?\d+)`)
+	varRe     = regexp.MustCompile(`%([A-Za-z0-9_]+)%`)
+)
+
+func isDatePart(name string) bool {
+	switch name {
+	case "DD", "MM", "YY", "YYYY":
+		return true
+	}
+	return false
+}
 
 // ParseBatchScript reads a Windows batch script and attempts to extract a Safora Job configuration.
 func ParseBatchScript(filePath string) (*models.Job, error) {
@@ -18,91 +36,42 @@ func ParseBatchScript(filePath string) (*models.Job, error) {
 	}
 	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-
 	job := &models.Job{
 		Name:            "Imported Job",
 		StorageStrategy: "Date-Stamped Mirroring",
-		RetentionPolicy: "keep 30 days", // Default
+		// Empty means "never delete": a script that does not prune old copies must not start doing so.
 	}
 
-	var hasYesterday bool
-	var dateFormat string
-	var dynamicVarName string
+	var (
+		vars       = map[string]string{}
+		dayOffset  int
+		yearDigits = 2
+		robocopy   []string
+	)
 
-	vars := make(map[string]string)
+	for _, line := range logicalLines(file) {
+		lower := strings.ToLower(line)
 
-	robocopyCmds := []string{}
-
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-
-		lineExpanded := line
-		for k, v := range vars {
-			lineExpanded = strings.ReplaceAll(lineExpanded, "%"+k+"%", v)
+		if m := dateAddRe.FindStringSubmatch(expand(line, vars)); m != nil {
+			dayOffset, _ = strconv.Atoi(m[1])
 		}
 
-		// Detect yesterday logic
-		if strings.Contains(strings.ToLower(lineExpanded), "dateadd") && strings.Contains(lineExpanded, "-1") {
-			hasYesterday = true
-		}
-
-		// Detect set VAR=VALUE
-		if strings.HasPrefix(strings.ToLower(line), "set ") {
-			parts := strings.SplitN(line[4:], "=", 2)
-			if len(parts) == 2 {
-				varName := parts[0]
-				varVal := parts[1]
-
-				// Keep track of all variables
-				vars[varName] = varVal
-
-				if strings.Contains(varVal, "%DD%") || strings.Contains(varVal, "%MM%") {
-					dynamicVarName = varName
-					dateFormat = strings.ReplaceAll(varVal, "%DD%", "DD")
-					dateFormat = strings.ReplaceAll(dateFormat, "%MM%", "MM")
-					dateFormat = strings.ReplaceAll(dateFormat, "%YY%", "YY")
-					dateFormat = strings.ReplaceAll(dateFormat, "%YYYY%", "YYYY")
+		switch {
+		case strings.HasPrefix(lower, "set "):
+			if name, value, ok := parseSet(line); ok {
+				vars[name] = value
+				// set "YY=%result:~0,4%" takes four characters: a four-digit year.
+				if (name == "YY" || name == "YYYY") && strings.Contains(value, "~0,4") {
+					yearDigits = 4
 				}
 			}
-		}
-
-		// Collect robocopy commands
-		if strings.HasPrefix(strings.ToLower(line), "robocopy ") {
-			// Resolve any local batch variables in the command line first if we can,
-			// or at least replace the date variable with our Safora template.
-			if dynamicVarName != "" {
-				templateVar := "{today:" + dateFormat + "}"
-				if hasYesterday {
-					templateVar = "{yesterday:" + dateFormat + "}"
-				}
-				vars[dynamicVarName] = templateVar
-			}
-
-			// Simple variable expansion
-			for k, v := range vars {
-				// Also try expanding inside other variables recursively if needed, but simple is fine
-				line = strings.ReplaceAll(line, "%"+k+"%", v)
-			}
-
-			// Run a second pass to expand nested variables like SOURCE which uses YESTERDAY
-			for k, v := range vars {
-				vExpanded := v
-				for k2, v2 := range vars {
-					vExpanded = strings.ReplaceAll(vExpanded, "%"+k2+"%", v2)
-				}
-				line = strings.ReplaceAll(line, "%"+k+"%", vExpanded)
-			}
-
-			robocopyCmds = append(robocopyCmds, line)
+		case strings.HasPrefix(lower, "robocopy "):
+			robocopy = append(robocopy, line)
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-
-	for _, cmd := range robocopyCmds {
+	for _, cmd := range robocopy {
+		cmd = withDateTemplates(expandCommand(cmd, vars), dayOffset, yearDigits)
 		if err := parseRobocopyCommand(cmd, job); err != nil {
 			return nil, err
 		}
@@ -113,6 +82,107 @@ func ParseBatchScript(filePath string) (*models.Job, error) {
 	}
 
 	return job, nil
+}
+
+// logicalLines reads the script, joining lines that end with the ^ continuation character.
+func logicalLines(f *os.File) []string {
+	var lines []string
+	var pending string
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasSuffix(line, "^") {
+			pending += strings.TrimSpace(strings.TrimSuffix(line, "^")) + " "
+			continue
+		}
+		lines = append(lines, pending+line)
+		pending = ""
+	}
+	if pending != "" {
+		lines = append(lines, strings.TrimSpace(pending))
+	}
+	return lines
+}
+
+// parseSet reads `set NAME=value` and `set "NAME=value"`, ignoring set /a and set /p.
+func parseSet(line string) (name, value string, ok bool) {
+	rest := strings.TrimSpace(line[4:])
+	if strings.HasPrefix(rest, "/") {
+		return "", "", false
+	}
+	if len(rest) >= 2 && strings.HasPrefix(rest, `"`) && strings.HasSuffix(rest, `"`) {
+		rest = rest[1 : len(rest)-1]
+	}
+	name, value, found := strings.Cut(rest, "=")
+	if !found {
+		return "", "", false
+	}
+	return strings.ToUpper(strings.TrimSpace(name)), strings.Trim(strings.TrimSpace(value), `"`), true
+}
+
+// expand substitutes %NAME% with the script's variables (recursively). Date parts
+// (DD, MM, YY, YYYY) are left alone: they become Safora path templates later.
+func expand(s string, vars map[string]string) string {
+	for i := 0; i < 10; i++ {
+		next := varRe.ReplaceAllStringFunc(s, func(tok string) string {
+			name := strings.ToUpper(tok[1 : len(tok)-1])
+			if v, ok := vars[name]; ok && !isDatePart(name) {
+				return v
+			}
+			return tok
+		})
+		if next == s {
+			break
+		}
+		s = next
+	}
+	return s
+}
+
+// expandCommand expands variables in a robocopy command line. Values containing
+// spaces are quoted (unless already inside quotes) so the paths stay one argument.
+func expandCommand(cmd string, vars map[string]string) string {
+	var out strings.Builder
+	last := 0
+	for _, loc := range varRe.FindAllStringSubmatchIndex(cmd, -1) {
+		name := strings.ToUpper(cmd[loc[2]:loc[3]])
+		v, ok := vars[name]
+		if !ok || isDatePart(name) {
+			continue
+		}
+		out.WriteString(cmd[last:loc[0]])
+		v = expand(v, vars)
+		insideQuotes := strings.Count(out.String(), `"`)%2 == 1
+		if strings.ContainsAny(v, " \t") && !insideQuotes {
+			v = `"` + v + `"`
+		}
+		out.WriteString(v)
+		last = loc[1]
+	}
+	out.WriteString(cmd[last:])
+	return out.String()
+}
+
+// withDateTemplates turns runs of date parts into Safora templates:
+// %DD%-%MM%-%YY% becomes {yesterday:DD-MM-YY} when the script shifted the date by -1 day.
+func withDateTemplates(s string, dayOffset, yearDigits int) string {
+	kind := "today"
+	switch {
+	case dayOffset == -1:
+		kind = "yesterday"
+	case dayOffset != 0:
+		kind = "offset:" + strconv.Itoa(dayOffset)
+	}
+	return dateRunRe.ReplaceAllStringFunc(s, func(run string) string {
+		format := dateTokRe.ReplaceAllStringFunc(run, func(tok string) string {
+			part := strings.ToUpper(tok[1 : len(tok)-1])
+			if part == "YY" && yearDigits == 4 {
+				return "YYYY"
+			}
+			return part
+		})
+		return "{" + kind + ":" + format + "}"
+	})
 }
 
 func parseRobocopyCommand(cmd string, job *models.Job) error {
@@ -156,6 +226,9 @@ func parseRobocopyCommand(cmd string, job *models.Job) error {
 				xfArgs = append(xfArgs, tokens[j])
 				i = j
 			}
+		} else if upperToken == "/MIR" || upperToken == "/PURGE" {
+			// robocopy deletes destination files that left the source.
+			job.SyncDeletions = true
 		} else if strings.HasPrefix(upperToken, "/R:") {
 			val, _ := strconv.Atoi(strings.TrimPrefix(upperToken, "/R:"))
 			job.RetryCount = val
