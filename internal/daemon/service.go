@@ -48,14 +48,22 @@ func (p *program) Stop(s service.Service) error {
 	return nil
 }
 
-func ManageService(action string, db *sql.DB) error {
+// ManageService installs, controls or runs the Safora system service. The
+// installed service starts "safora service run", keeping --portable if it was
+// used at install time, so it opens the same data directory as the installer.
+func ManageService(action string, db *sql.DB, tokenPath string, portable bool) error {
+	args := []string{"service", "run"}
+	if portable {
+		args = append([]string{"--portable"}, args...)
+	}
 	svcConfig := &service.Config{
 		Name:        "Safora",
 		DisplayName: "Safora Backup Manager",
 		Description: "Automated backup management and background sync service.",
+		Arguments:   args,
 	}
 
-	server, err := api.NewServer(db, api.TokenFile)
+	server, err := api.NewServer(db, tokenPath)
 	if err != nil {
 		return err
 	}
