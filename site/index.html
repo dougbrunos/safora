@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Safora: transforme scripts de backup em tarefas agendadas</title>
+  <meta name="description" content="Safora importa o seu script .bat com robocopy e o transforma em uma tarefa com agendamento, histórico de execuções e retenção de cópias. Grátis, open source, para Windows e Linux.">
+  <link rel="canonical" href="https://dougbrunos.github.io/safora/">
+  <meta name="theme-color" content="#F8FAFC">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Safora: transforme scripts de backup em tarefas agendadas">
+  <meta property="og:description" content="Importe o seu .bat com robocopy. Agende, acompanhe cada execução e apague cópias antigas com segurança.">
+  <meta property="og:url" content="https://dougbrunos.github.io/safora/">
+  <meta property="og:image" content="https://dougbrunos.github.io/safora/assets/banner.png">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" href="assets/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#conteudo"><span lang="pt">Ir para o conteúdo</span><span lang="en">Skip to content</span></a>
+
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="#" aria-label="Safora">
+        <img src="assets/logo.png" alt="" width="32" height="32">
+        <span>Safora</span>
+      </a>
+      <nav aria-label="Principal">
+        <a href="#recursos"><span lang="pt">Recursos</span><span lang="en">Features</span></a>
+        <a href="#baixar"><span lang="pt">Baixar</span><span lang="en">Download</span></a>
+        <a href="https://github.com/dougbrunos/safora">GitHub</a>
+        <button type="button" class="lang" id="lang-toggle" aria-label="Português / English">
+          <span lang="pt">EN</span><span lang="en">PT</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="conteudo">
+    <section class="hero wrap">
+      <div class="hero-copy">
+        <h1>
+          <span lang="pt">Seu script de backup vira uma tarefa que roda sozinha.</span>
+          <span lang="en">Your backup script becomes a job that runs on its own.</span>
+        </h1>
+        <p class="lead">
+          <span lang="pt">Cole o seu <code>.bat</code> com robocopy. O Safora extrai origem, destino e exclusões, agenda a execução, guarda o histórico de cada cópia e apaga as antigas com segurança.</span>
+          <span lang="en">Paste your <code>.bat</code> with robocopy. Safora extracts the source, destination and exclusions, schedules the run, keeps a history of every copy and safely deletes the old ones.</span>
+        </p>
+        <div class="actions">
+          <a class="btn primary" href="https://github.com/dougbrunos/safora/releases" data-asset="windows">
+            <span lang="pt">Baixar para Windows</span><span lang="en">Download for Windows</span>
+          </a>
+          <a class="btn" href="https://github.com/dougbrunos/safora">
+            <span lang="pt">Ver no GitHub</span><span lang="en">View on GitHub</span>
+          </a>
+        </div>
+        <p class="fine">
+          <span lang="pt">Grátis e open source, licença MIT. Para Windows e Linux.</span>
+          <span lang="en">Free and open source, MIT license. For Windows and Linux.</span>
+          <span class="ver" id="ver" hidden></span>
+        </p>
+      </div>
+
+      <div class="demo" aria-label="Exemplo: script robocopy e a tarefa gerada">
+        <figure class="script">
+          <figcaption>backup-diario.bat</figcaption>
+<pre><code>echo WScript.Echo DateAdd("d", -1, Date) &gt; "%temp%\yesterday.vbs"
+for /f "tokens=1-3 delims=/" %%a in ('cscript //nologo "%temp%\yesterday.vbs"') do (
+  set DD=%%a &amp; set MM=%%b &amp; set YY=%%c
+)
+set YESTERDAY=%DD%-%MM%-%YY%
+set SOURCE=C:\Data\Production\%YESTERDAY%
+set DEST=D:\Backups\Daily\%YESTERDAY%
+
+robocopy "%SOURCE%" "%DEST%" /MIR ^
+  /XD Cache temp /XF *.tmp *.bak /R:5 /W:5</code></pre>
+        </figure>
+
+        <div class="job">
+          <p class="job-title">
+            <span lang="pt">Tarefa criada pelo Safora</span>
+            <span lang="en">Job created by Safora</span>
+          </p>
+          <dl>
+            <div style="--i:0"><dt><span lang="pt">Copiar de</span><span lang="en">Back up from</span></dt><dd><code>C:\Data\Production\<mark>{yesterday:DD-MM-YY}</mark></code></dd></div>
+            <div style="--i:1"><dt><span lang="pt">Salvar em</span><span lang="en">Save to</span></dt><dd><code>D:\Backups\Daily\<mark>{yesterday:DD-MM-YY}</mark></code></dd></div>
+            <div style="--i:2"><dt><span lang="pt">Pastas ignoradas</span><span lang="en">Skipped folders</span></dt><dd><code>Cache, temp</code></dd></div>
+            <div style="--i:3"><dt><span lang="pt">Arquivos ignorados</span><span lang="en">Skipped files</span></dt><dd><code>*.tmp, *.bak</code></dd></div>
+            <div style="--i:4"><dt><span lang="pt">Tentativas</span><span lang="en">Retries</span></dt><dd><span lang="pt">5, com 5 s de espera</span><span lang="en">5, waiting 5 s</span></dd></div>
+            <div style="--i:5"><dt><span lang="pt">Retenção</span><span lang="en">Retention</span></dt><dd><span lang="pt">Manter os últimos 30 dias</span><span lang="en">Keep the last 30 days</span></dd></div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap block" id="comparacao">
+      <h2><span lang="pt">O que deixa de ser trabalho manual</span><span lang="en">What stops being manual work</span></h2>
+      <table class="compare">
+        <thead>
+          <tr>
+            <th scope="col"></th>
+            <th scope="col"><span lang="pt">Com scripts</span><span lang="en">With scripts</span></th>
+            <th scope="col"><span lang="pt">No Safora</span><span lang="en">In Safora</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row"><span lang="pt">Rodar no horário</span><span lang="en">Run on schedule</span></th>
+            <td><span lang="pt">Uma tarefa no Agendador do Windows para cada script.</span><span lang="en">One Windows Task Scheduler entry per script.</span></td>
+            <td><span lang="pt">Agendamento dentro da própria tarefa: diário, semanal ou a cada poucas horas.</span><span lang="en">Scheduling inside the job itself: daily, weekly or every few hours.</span></td>
+          </tr>
+          <tr>
+            <th scope="row"><span lang="pt">Data na pasta</span><span lang="en">Date in the folder</span></th>
+            <td><span lang="pt">Variáveis de ambiente e um VBScript para calcular “ontem”.</span><span lang="en">Environment variables and a VBScript to work out “yesterday”.</span></td>
+            <td><code>{yesterday:DD-MM-YYYY}</code> <span lang="pt">direto no caminho.</span><span lang="en">right in the path.</span></td>
+          </tr>
+          <tr>
+            <th scope="row"><span lang="pt">Saber se deu certo</span><span lang="en">Know it worked</span></th>
+            <td><span lang="pt">Abrir o arquivo de log e procurar o erro.</span><span lang="en">Open the log file and hunt for the error.</span></td>
+            <td><span lang="pt">Histórico com o resultado e o log completo de cada execução.</span><span lang="en">History with the result and full log of every run.</span></td>
+          </tr>
+          <tr>
+            <th scope="row"><span lang="pt">Limpar cópias antigas</span><span lang="en">Clear old copies</span></th>
+            <td><span lang="pt">Apagar as pastas velhas por conta própria.</span><span lang="en">Delete the old folders yourself.</span></td>
+            <td><span lang="pt">Retenção que guarda as últimas cópias e nunca apaga a mais recente.</span><span lang="en">Retention that keeps the latest copies and never deletes the newest.</span></td>
+          </tr>
+          <tr>
+            <th scope="row"><span lang="pt">Disco externo</span><span lang="en">External drive</span></th>
+            <td><span lang="pt">Lembrar de rodar o script quando o disco é conectado.</span><span lang="en">Remember to run the script when the drive is plugged in.</span></td>
+            <td><span lang="pt">A tarefa roda sozinha quando o disco aparece.</span><span lang="en">The job runs by itself when the drive shows up.</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="wrap block split" id="acompanhe">
+      <div>
+        <h2><span lang="pt">Acompanhe cada cópia</span><span lang="en">Follow every copy</span></h2>
+        <p>
+          <span lang="pt">O painel mostra em tempo real o que está sendo copiado e guarda o log de cada execução. O resultado é sempre um destes: sucesso, alerta ou falha. Um arquivo que não pôde ser copiado vira alerta, não passa despercebido.</span>
+          <span lang="en">The dashboard shows what is being copied in real time and keeps the log of every run. The result is always one of these: success, warning or failure. A file that could not be copied becomes a warning, so it never goes unnoticed.</span>
+        </p>
+        <p class="fine">
+          <span lang="pt">As mensagens do log aparecem em inglês.</span>
+          <span lang="en">Log messages are shown in English.</span>
+        </p>
+      </div>
+      <figure class="terminal" aria-label="Exemplo de log de uma execução">
+<pre><code><span class="row"><span class="t">14:02:11</span>  <span class="l">INFO</span>     Starting job 3: Financeiro - diario</span><span class="row"><span class="t">14:02:11</span>  <span class="l">INFO</span>     Copied C:\Financeiro\balanco.xlsx -&gt; E:\Backups\2026-09-29\balanco.xlsx (48213 bytes)</span><span class="row"><span class="t">14:02:12</span>  <span class="l w">WARNING</span>  Failed to copy C:\Financeiro\aberto.xlsx: The process cannot access the file because it is being used by another process.</span><span class="row"><span class="t">14:02:12</span>  <span class="l">INFO</span>     Summary: 1 copied, 0 skipped (unchanged), 0 deleted</span><span class="row"><span class="t">14:02:12</span>  <span class="l">INFO</span>     Job finished with status warning</span></code></pre>
+      </figure>
+    </section>
+
+    <section class="wrap block" id="recursos">
+      <h2><span lang="pt">O que o Safora faz</span><span lang="en">What Safora does</span></h2>
+      <dl class="features">
+        <div>
+          <dt><span lang="pt">Importa scripts .bat e robocopy</span><span lang="en">Imports .bat and robocopy scripts</span></dt>
+          <dd><span lang="pt">Extrai origem, destino, exclusões, tentativas e a data usada no caminho.</span><span lang="en">Extracts source, destination, exclusions, retries and the date used in the path.</span></dd>
+        </div>
+        <div>
+          <dt><span lang="pt">Datas nos caminhos</span><span lang="en">Dates in paths</span></dt>
+          <dd><code>{today}</code>, <code>{yesterday}</code>, <code>{offset:-7}</code> <span lang="pt">e</span><span lang="en">and</span> <code>{hostname}</code>, <span lang="pt">no formato que você escolher.</span><span lang="en">in whatever format you choose.</span></dd>
+        </div>
+        <div>
+          <dt><span lang="pt">Agendamento sem decorar cron</span><span lang="en">Scheduling without memorizing cron</span></dt>
+          <dd><span lang="pt">Diário, semanal, mensal ou a cada poucas horas, escolhido em campos. A expressão cron continua disponível para quem prefere.</span><span lang="en">Daily, weekly, monthly or every few hours, picked from fields. Cron expressions remain available for those who prefer them.</span></dd>
+        </div>
+        <div>
+          <dt><span lang="pt">Cópia incremental</span><span lang="en">Incremental copy</span></dt>
+          <dd><span lang="pt">Copia só o que mudou desde a última execução.</span><span lang="en">Copies only what changed since the last run.</span></dd>
+        </div>
+        <div>
+          <dt><span lang="pt">Retenção com trava de segurança</span><span lang="en">Retention with a safety lock</span></dt>
+          <dd><span lang="pt">Guarda as últimas N cópias ou os últimos N dias. Não apaga nada se a execução falhou.</span><span lang="en">Keeps the last N copies or the last N days. Deletes nothing if the run failed.</span></dd>
+        </div>
+        <div>
+          <dt><span lang="pt">Verificação de integridade</span><span lang="en">Integrity check</span></dt>
+          <dd><span lang="pt">Compara cada arquivo copiado com o original.</span><span lang="en">Compares every copied file with the original.</span></dd>
+        </div>
+        <div>
+          <dt><span lang="pt">Executa ao conectar o disco</span><span lang="en">Runs when the drive connects</span></dt>
+          <dd><span lang="pt">Detecta o disco externo do destino e inicia a tarefa.</span><span lang="en">Detects the destination's external drive and starts the job.</span></dd>
+        </div>
+        <div>
+          <dt><span lang="pt">Painel em português e inglês</span><span lang="en">Dashboard in Portuguese and English</span></dt>
+          <dd><span lang="pt">Tema claro e escuro, aberto no navegador do próprio computador. Nada sai da sua máquina.</span><span lang="en">Light and dark theme, opened in the browser of the same computer. Nothing leaves your machine.</span></dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="wrap block" id="baixar">
+      <h2><span lang="pt">Baixar o Safora</span><span lang="en">Download Safora</span></h2>
+      <div class="downloads">
+        <div>
+          <h3>Windows</h3>
+          <p><span lang="pt">O instalador cadastra o Safora como serviço e cria um atalho para o painel no menu Iniciar.</span><span lang="en">The installer registers Safora as a service and adds a Start menu shortcut to the dashboard.</span></p>
+          <a class="btn primary" href="https://github.com/dougbrunos/safora/releases" data-asset="windows">
+            <span lang="pt">Instalador (.exe)</span><span lang="en">Installer (.exe)</span>
+          </a>
+        </div>
+        <div>
+          <h3>Linux</h3>
+          <p><span lang="pt">Extraia o pacote e execute <code>sudo ./install.sh</code>. O serviço sobe com o systemd.</span><span lang="en">Extract the package and run <code>sudo ./install.sh</code>. The service starts under systemd.</span></p>
+          <div class="actions tight">
+            <a class="btn" href="https://github.com/dougbrunos/safora/releases" data-asset="linux-amd64">x86-64 (.tar.gz)</a>
+            <a class="btn" href="https://github.com/dougbrunos/safora/releases" data-asset="linux-arm64">ARM64 (.tar.gz)</a>
+          </div>
+        </div>
+      </div>
+      <p class="note">
+        <span lang="pt">O instalador do Windows ainda não é assinado digitalmente. Na primeira execução o SmartScreen mostra “Editor desconhecido”: clique em <strong>Mais informações</strong> e depois em <strong>Executar assim mesmo</strong>. Compare o arquivo com o <a href="https://github.com/dougbrunos/safora/releases" data-asset="sums">SHA256SUMS.txt</a> da versão.</span>
+        <span lang="en">The Windows installer is not code-signed yet. On first run SmartScreen shows “Unknown publisher”: click <strong>More info</strong>, then <strong>Run anyway</strong>. Compare the file against the release's <a href="https://github.com/dougbrunos/safora/releases" data-asset="sums">SHA256SUMS.txt</a>.</span>
+      </p>
+
+      <h3 class="limits-title"><span lang="pt">O que ainda não existe</span><span lang="en">What does not exist yet</span></h3>
+      <ul class="limits">
+        <li><span lang="pt">Restauração pelo painel. As cópias são arquivos comuns: para recuperar, copie de volta pelo gerenciador de arquivos.</span><span lang="en">Restoring from the dashboard. Copies are ordinary files: to recover, copy them back with the file manager.</span></li>
+        <li><span lang="pt">Cópia de arquivos em uso no Windows (VSS).</span><span lang="en">Copying files in use on Windows (VSS).</span></li>
+        <li><span lang="pt">Envio direto para nuvem. Os destinos são pastas; use uma unidade de rede ou uma pasta sincronizada.</span><span lang="en">Direct upload to the cloud. Destinations are folders; use a network drive or a synced folder.</span></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot-row">
+      <p>
+        <span lang="pt">Safora é software livre sob a licença MIT. Criado por <a href="https://github.com/dougbrunos">dougbrunos</a>.</span>
+        <span lang="en">Safora is free software under the MIT license. Created by <a href="https://github.com/dougbrunos">dougbrunos</a>.</span>
+      </p>
+      <p>
+        <a href="https://github.com/dougbrunos/safora"><span lang="pt">Código-fonte</span><span lang="en">Source code</span></a>
+        <a href="https://github.com/dougbrunos/safora/issues"><span lang="pt">Relatar um problema</span><span lang="en">Report a problem</span></a>
+      </p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

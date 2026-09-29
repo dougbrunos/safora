@@ -7,7 +7,7 @@ import (
 )
 
 func TestParseBatchScript(t *testing.T) {
-	fixturePath := filepath.Join("..", "..", ".scratch", "mvp-foundation", "fixtures", "sample.bat")
+	fixturePath := filepath.Join("testdata", "sample.bat")
 
 	// Ensure the fixture exists
 	if _, err := os.Stat(fixturePath); os.IsNotExist(err) {
@@ -45,7 +45,7 @@ func TestParseBatchScript(t *testing.T) {
 		t.Errorf("Expected Source Path '%s', got '%s'", expectedSrcPath, src.Path)
 	}
 
-	expectedExclusions := "DIR:123LAUDOS123,temp;FILE:*.tmp,*.bak"
+	expectedExclusions := "DIR:Cache,temp;FILE:*.tmp,*.bak"
 	if src.ExclusionRules != expectedExclusions {
 		t.Errorf("Expected ExclusionRules '%s', got '%s'", expectedExclusions, src.ExclusionRules)
 	}

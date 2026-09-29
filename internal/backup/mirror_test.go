@@ -24,17 +24,17 @@ func TestDateStampedMirroring(t *testing.T) {
 	dstDir := filepath.Join(tempDir, "dst")
 
 	os.MkdirAll(filepath.Join(srcDir, "folder1"), 0755)
-	os.MkdirAll(filepath.Join(srcDir, "123LAUDOS123"), 0755)
+	os.MkdirAll(filepath.Join(srcDir, "Cache"), 0755)
 
 	os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("hello"), 0644)
 	os.WriteFile(filepath.Join(srcDir, "folder1", "file2.tmp"), []byte("temp file"), 0644)
-	os.WriteFile(filepath.Join(srcDir, "123LAUDOS123", "secret.txt"), []byte("secret"), 0644)
+	os.WriteFile(filepath.Join(srcDir, "Cache", "secret.txt"), []byte("secret"), 0644)
 
 	job := &models.Job{
 		Name:            "Test Job",
 		StorageStrategy: "Date-Stamped Mirroring",
 		Sources: []models.Source{
-			{Path: srcDir, ExclusionRules: "DIR:123LAUDOS123;FILE:*.tmp"},
+			{Path: srcDir, ExclusionRules: "DIR:Cache;FILE:*.tmp"},
 		},
 		Destinations: []models.Destination{
 			{Path: dstDir},
@@ -73,7 +73,7 @@ func TestDateStampedMirroring(t *testing.T) {
 		t.Errorf("file2.tmp should have been excluded")
 	}
 
-	if _, err := os.Stat(filepath.Join(dstDir, "123LAUDOS123")); !os.IsNotExist(err) {
-		t.Errorf("123LAUDOS123 should have been excluded")
+	if _, err := os.Stat(filepath.Join(dstDir, "Cache")); !os.IsNotExist(err) {
+		t.Errorf("Cache should have been excluded")
 	}
 }

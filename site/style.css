@@ -1,0 +1,144 @@
+:root {
+  --paper: #F8FAFC;
+  --ink: #0F172A;
+  --muted: #475569;
+  --line: #E2E8F0;
+  --navy: #0B1220;
+  --teal: #00BFA6;
+  --teal-hover: #00D1B2;
+  --teal-ink: #00796A;
+  --mark: rgb(0 191 166 / 0.16);
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  --sans: "Outfit", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* One language visible at a time; <html lang> decides which. */
+html[lang="pt"] [lang="en"],
+html[lang="en"] [lang="pt"] { display: none; }
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 1rem; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 1.0625rem/1.65 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { font-weight: 600; margin: 0; }
+p { margin: 0 0 1rem; }
+a { color: var(--teal-ink); text-underline-offset: 0.2em; }
+code { font-family: var(--mono); font-size: 0.88em; background: #EEF2F6; padding: 0.1em 0.25em; border-radius: 4px; }
+:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; border-radius: 4px; }
+
+.wrap { width: min(72rem, calc(100% - 2.5rem)); margin-inline: auto; }
+.skip { position: absolute; left: -999px; top: 0; background: #fff; padding: 0.6rem 1rem; z-index: 10; }
+.skip:focus { left: 1rem; top: 1rem; }
+
+/* Header */
+.top { border-bottom: 1px solid var(--line); }
+.top-row { display: flex; align-items: center; justify-content: space-between; padding-block: 1rem; }
+.brand { display: flex; align-items: center; gap: 0.6rem; color: var(--ink); text-decoration: none; font-size: 1.2rem; font-weight: 600; letter-spacing: -0.01em; }
+.brand img { border-radius: 6px; }
+.top nav { display: flex; align-items: center; gap: 1.5rem; }
+.top nav a { color: var(--muted); text-decoration: none; }
+.top nav a:hover { color: var(--ink); }
+.lang { font: 500 0.9rem var(--sans); border: 1px solid var(--line); background: transparent; color: var(--ink); padding: 0.25rem 0.65rem; border-radius: 8px; cursor: pointer; }
+.lang:hover { background: #fff; }
+
+/* Hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: clamp(2rem, 5vw, 4.5rem); align-items: center; padding-block: clamp(3rem, 8vw, 6rem); }
+.hero h1 { font-size: clamp(2.4rem, 4.6vw, 3.9rem); line-height: 1.04; letter-spacing: -0.03em; text-wrap: balance; max-width: 13em; }
+.lead { font-size: 1.2rem; color: var(--muted); max-width: 34rem; margin-top: 1.5rem; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 2rem; }
+.actions.tight { margin-top: 0.5rem; }
+.btn { display: inline-flex; align-items: center; padding: 0.8rem 1.25rem; border-radius: 10px; border: 1px solid #CBD5E1; background: #fff; color: var(--ink); text-decoration: none; font-weight: 500; }
+.btn:hover { background: #F1F5F9; }
+.btn.primary { background: var(--teal); border-color: var(--teal); color: #06231F; }
+.btn.primary:hover { background: var(--teal-hover); border-color: var(--teal-hover); }
+.fine { font-size: 0.95rem; color: var(--muted); margin-top: 1.25rem; }
+.ver { margin-left: 0.5rem; font-weight: 500; color: var(--ink); }
+
+/* Hero demo: the script the user has, and the job Safora builds from it */
+.demo { display: grid; gap: 1rem; min-width: 0; }
+.script { margin: 0; background: var(--navy); color: #CBD5E1; border-radius: 6px; overflow: hidden; }
+.script figcaption { padding: 0.55rem 1rem; font: 400 0.75rem var(--mono); color: #94A3B8; border-bottom: 1px solid rgb(255 255 255 / 0.08); }
+.script pre { margin: 0; padding: 1rem; font: 400 0.76rem/1.65 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.script code { background: none; padding: 0; font-size: inherit; }
+
+.job { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 1.1rem 1.25rem 0.6rem; box-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 14px 30px -16px rgb(15 23 42 / 0.2); }
+.job-title { font-weight: 600; margin: 0 0 0.4rem; }
+.job dl { margin: 0; }
+.job dl > div { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); gap: 1rem; padding: 0.6rem 0; border-top: 1px solid var(--line); opacity: 0; animation: appear 0.45s ease-out forwards; animation-delay: calc(var(--i) * 130ms + 350ms); }
+.job dt { color: var(--muted); font-size: 0.92rem; }
+.job dd { margin: 0; min-width: 0; overflow-wrap: anywhere; font-size: 0.95rem; }
+.job code { background: none; padding: 0; font-size: 0.82rem; }
+mark { background: var(--mark); color: inherit; padding: 0 0.15em; border-radius: 3px; }
+@keyframes appear { to { opacity: 1; } }
+
+/* Sections */
+.block { padding-block: clamp(3rem, 7vw, 5.5rem); border-top: 1px solid var(--line); }
+.block h2 { font-size: clamp(1.6rem, 3vw, 2.2rem); letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 1.75rem; }
+.block h3 { font-size: 1.15rem; margin-bottom: 0.4rem; }
+
+.compare { width: 100%; border-collapse: collapse; }
+.compare th, .compare td { text-align: left; vertical-align: top; padding: 1.05rem 1rem; border-top: 1px solid var(--line); }
+.compare thead th { border-top: 0; color: var(--muted); font-weight: 500; font-size: 0.92rem; padding-top: 0; }
+.compare tbody th { width: 14rem; font-weight: 600; }
+.compare td:nth-child(2) { color: var(--muted); }
+.compare td:nth-child(3) { background: rgb(0 191 166 / 0.06); }
+
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: clamp(2rem, 5vw, 4rem); align-items: start; }
+.split p { color: var(--muted); max-width: 32rem; }
+.terminal { margin: 0; background: var(--navy); color: #CBD5E1; border-radius: 6px; min-width: 0; }
+.terminal pre { margin: 0; padding: 1.1rem 1.25rem; font: 400 0.76rem/1.75 var(--mono); }
+/* Each log line wraps with a hanging indent under the message column. */
+.terminal .row { display: block; padding-left: 21ch; text-indent: -21ch; white-space: pre-wrap; overflow-wrap: anywhere; }
+.terminal code { background: none; padding: 0; font-size: inherit; }
+.terminal .t, .terminal .l { color: #64748B; }
+.terminal .l.w { color: #FBBF24; }
+
+.features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 3.5rem; margin: 0; }
+.features > div { padding: 1.15rem 0; border-top: 1px solid var(--line); }
+.features dt { font-weight: 600; }
+.features dd { margin: 0.25rem 0 0; color: var(--muted); max-width: 30rem; }
+
+.downloads { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3rem; }
+.downloads p { color: var(--muted); max-width: 26rem; }
+.note { margin-top: 2.25rem; padding: 1rem 1.25rem; background: #EEF2F6; border-radius: 8px; color: var(--ink); max-width: 46rem; }
+.limits-title { margin-top: 3rem; }
+.limits { margin: 0; padding-left: 1.2rem; color: var(--muted); max-width: 44rem; }
+.limits li { margin-bottom: 0.4rem; }
+
+footer { border-top: 1px solid var(--line); padding-block: 2rem; color: var(--muted); font-size: 0.95rem; }
+.foot-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; }
+.foot-row p { margin: 0; }
+.foot-row a { margin-left: 1.25rem; }
+
+@media (max-width: 60rem) {
+  .hero, .split, .downloads { grid-template-columns: minmax(0, 1fr); }
+  .features { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 46rem) {
+  .top nav a[href^="#"] { display: none; }
+  .job dl > div { grid-template-columns: minmax(0, 1fr); gap: 0.15rem; }
+
+  /* Comparison stacks: each row becomes a small group with labelled lines. */
+  .compare, .compare tbody, .compare tr, .compare th, .compare td { display: block; width: auto; }
+  .compare thead { display: none; }
+  .compare tr { padding: 1rem 0; border-top: 1px solid var(--line); }
+  .compare th, .compare td { border: 0; padding: 0.15rem 0; }
+  .compare td:nth-child(3) { background: none; }
+  .compare td::before { display: block; font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+  html[lang="pt"] .compare td:nth-child(2)::before { content: "Com scripts"; }
+  html[lang="pt"] .compare td:nth-child(3)::before { content: "No Safora"; }
+  html[lang="en"] .compare td:nth-child(2)::before { content: "With scripts"; }
+  html[lang="en"] .compare td:nth-child(3)::before { content: "In Safora"; }
+  .compare td { margin-top: 0.4rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .job dl > div { opacity: 1; animation: none; }
+}
