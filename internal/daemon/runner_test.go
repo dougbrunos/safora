@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"safora/internal/backup"
 	"safora/internal/database"
 	"safora/internal/models"
 )
@@ -25,7 +26,7 @@ func TestRunner_ExecuteJob(t *testing.T) {
 
 	database.SaveJob(db, job)
 
-	runner := NewRunner(db)
+	runner := NewRunner(db, backup.NewDefaultEngine(db))
 
 	// Execute synchronously for test
 	runner.executeJob(job.ID)
@@ -51,7 +52,7 @@ func TestRunner_StartStop(t *testing.T) {
 	}
 	defer db.Close()
 
-	runner := NewRunner(db)
+	runner := NewRunner(db, backup.NewDefaultEngine(db))
 
 	ctx, cancel := context.WithCancel(context.Background())
 

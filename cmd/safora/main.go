@@ -120,8 +120,17 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error initializing database: %v\n", err)
 			os.Exit(1)
 		}
-		
-		server := api.NewServer(db)
+
+		if _, err := database.RecoverOrphanedRuns(db); err != nil {
+			fmt.Fprintf(os.Stderr, "Error recovering interrupted runs: %v\n", err)
+			os.Exit(1)
+		}
+
+		server, err := api.NewServer(db, api.TokenFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating server: %v\n", err)
+			os.Exit(1)
+		}
 		port := "3434"
 		if len(os.Args) >= 3 {
 			port = os.Args[2]

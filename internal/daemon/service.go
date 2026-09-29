@@ -8,11 +8,13 @@ import (
 
 	"github.com/kardianos/service"
 	"safora/internal/api"
+	"safora/internal/database"
 )
 
 const listenAddr = "127.0.0.1:3434"
 
 type program struct {
+	db     *sql.DB
 	server *api.Server
 	runner *Runner
 	ctx    context.Context
@@ -21,6 +23,13 @@ type program struct {
 
 func (p *program) Start(s service.Service) error {
 	p.ctx, p.cancel = context.WithCancel(context.Background())
+
+	// Before any Trigger can fire, so a fresh Run is never mistaken for an orphan.
+	if n, err := database.RecoverOrphanedRuns(p.db); err != nil {
+		return err
+	} else if n > 0 {
+		log.Printf("Marked %d interrupted run(s) as failed", n)
+	}
 
 	go func() {
 		if err := p.server.Start(listenAddr); err != nil {
@@ -46,10 +55,15 @@ func ManageService(action string, db *sql.DB) error {
 		Description: "Automated backup management and background sync service.",
 	}
 
-	prg := &program{
-		server: api.NewServer(db),
-		runner: NewRunner(db),
+	server, err := api.NewServer(db, api.TokenFile)
+	if err != nil {
+		return err
 	}
+
+	runner := NewRunner(db, server.Engine())
+	server.OnJobsChanged = runner.SyncSchedules
+
+	prg := &program{db: db, server: server, runner: runner}
 
 	s, err := service.New(prg, svcConfig)
 	if err != nil {

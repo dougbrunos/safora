@@ -39,6 +39,15 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-brand-text: var(--brand-text);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-running: var(--running);
+  --color-running-soft: var(--running-soft);
 
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -47,28 +56,36 @@
   --radius-2xl: 20px;
 }
 
+/* Light is the default; the .dark class (set by lib/theme.ts) switches to the navy palette. */
 :root {
-  /* Enforce Dark Mode by default as per spec */
-  --background: #0B1220;
-  --foreground: #F8FAFC;
-  --card: #0F172A;
-  --card-foreground: #F8FAFC;
-  --popover: #0F172A;
-  --popover-foreground: #F8FAFC;
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
   --primary: #00BFA6;
-  --primary-foreground: #FFFFFF;
-  --secondary: #172033;
-  --secondary-foreground: #E2E8F0;
-  --muted: #1E293B;
-  --muted-foreground: #94A3B8;
-  --accent: #172033;
-  --accent-foreground: #00D1B2;
-  --destructive: #EF4444;
-  --destructive-foreground: #F8FAFC;
-  --border: #263247;
-  --input: #263247;
-  --ring: #00D1B2;
+  --primary-foreground: #06231F;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #1E293B;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+  --accent: #E6FAF6;
+  --accent-foreground: #00695B;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --border: #E2E8F0;
+  --input: #CBD5E1;
+  --ring: #00BFA6;
   --radius: 8px;
+
+  --brand-text: #00796A;
+  --success: #15803D;   --success-soft: #DCFCE7;
+  --warning: #B45309;   --warning-soft: #FEF3C7;
+  --danger: #B91C1C;    --danger-soft: #FEE2E2;
+  --running: #0F766E;   --running-soft: #CCFBF1;
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 6px 16px -6px rgb(15 23 42 / 0.08);
+  color-scheme: light;
 }
 
 .dark {
@@ -79,18 +96,26 @@
   --popover: #0F172A;
   --popover-foreground: #F8FAFC;
   --primary: #00BFA6;
-  --primary-foreground: #FFFFFF;
+  --primary-foreground: #06231F;
   --secondary: #172033;
   --secondary-foreground: #E2E8F0;
-  --muted: #1E293B;
+  --muted: #172033;
   --muted-foreground: #94A3B8;
   --accent: #172033;
-  --accent-foreground: #00D1B2;
+  --accent-foreground: #19E6D0;
   --destructive: #EF4444;
   --destructive-foreground: #F8FAFC;
   --border: #263247;
   --input: #263247;
-  --ring: #00D1B2;
+  --ring: #19E6D0;
+
+  --brand-text: #19E6D0;
+  --success: #4ADE80;   --success-soft: rgb(34 197 94 / 0.14);
+  --warning: #FBBF24;   --warning-soft: rgb(245 158 11 / 0.14);
+  --danger: #F87171;    --danger-soft: rgb(239 68 68 / 0.14);
+  --running: #19E6D0;   --running-soft: rgb(0 209 178 / 0.14);
+  --shadow-card: none;
+  color-scheme: dark;
 }
 
 @layer base {
@@ -98,6 +123,17 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 30%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

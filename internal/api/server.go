@@ -4,12 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 
 	"safora/internal/backup"
 	"safora/internal/database"
@@ -21,79 +21,66 @@ import (
 type Server struct {
 	db     *sql.DB
 	broker *Broker
+	token  string
+	engine *backup.DefaultEngine
+
+	// OnJobsChanged, if set, runs after a Job is created, updated or deleted.
+	OnJobsChanged func()
 }
 
-func NewServer(db *sql.DB) *Server {
-	return &Server{
-		db:     db,
-		broker: NewBroker(),
+func (s *Server) jobsChanged() {
+	if s.OnJobsChanged != nil {
+		s.OnJobsChanged()
 	}
 }
+
+func NewServer(db *sql.DB, tokenPath string) (*Server, error) {
+	token, err := loadOrCreateToken(tokenPath)
+	if err != nil {
+		return nil, fmt.Errorf("api token: %w", err)
+	}
+	s := &Server{db: db, broker: NewBroker(), token: token, engine: backup.NewDefaultEngine(db)}
+	// Every Run, however triggered, streams to the dashboard.
+	s.engine.SetLogCallback(func(level, msg string) {
+		s.broker.Broadcast(fmt.Sprintf("[%s] %s", level, msg))
+	})
+	return s, nil
+}
+
+// Engine returns the shared backup engine, wired to the Live Stream.
+func (s *Server) Engine() *backup.DefaultEngine { return s.engine }
 
 func (s *Server) Start(addr string) error {
 
 	mux := http.NewServeMux()
-
-	// Routes
 	mux.HandleFunc("GET /api/jobs", s.handleGetJobs)
 	mux.HandleFunc("POST /api/jobs", s.handleCreateJob)
-	mux.HandleFunc("GET /api/jobs/", s.handleGetJobByID) // Needs manual ID parsing since Go 1.24 router is not fully regex in ServeMux unless using 1.22+ features correctly
-	mux.HandleFunc("DELETE /api/jobs/", s.handleDeleteJob)
-	mux.HandleFunc("POST /api/jobs/", s.handleRunJob) // /api/jobs/:id/run
+	mux.HandleFunc("PUT /api/jobs/{id}", s.handleUpdateJob)
+	mux.HandleFunc("GET /api/jobs/{id}", s.handleGetJobByID)
+	mux.HandleFunc("DELETE /api/jobs/{id}", s.handleDeleteJob)
+	mux.HandleFunc("POST /api/jobs/{id}/run", s.handleRunJob)
 
 	mux.HandleFunc("POST /api/importer/parse", s.handleImporterParse)
 
 	mux.HandleFunc("GET /api/runs", s.handleGetRuns)
-	mux.HandleFunc("GET /api/runs/", s.handleGetRunByID)
+	mux.HandleFunc("GET /api/runs/{id}", s.handleGetRunByID)
+
+	mux.HandleFunc("GET /api/fs/list", s.handleFsList)
 
 	mux.HandleFunc("GET /api/stream", s.broker.ServeHTTP)
+	mux.Handle("/", http.FileServer(ui.GetStaticFS()))
 
-	// Since Go 1.22, ServeMux supports method and path variables
-	// Let's redefine with Go 1.22+ routing syntax
-	mux22 := http.NewServeMux()
-	mux22.HandleFunc("GET /api/jobs", s.handleGetJobs)
-	mux22.HandleFunc("POST /api/jobs", s.handleCreateJob)
-	mux22.HandleFunc("PUT /api/jobs/{id}", s.handleUpdateJob)
-	mux22.HandleFunc("GET /api/jobs/{id}", s.handleGetJobByID)
-	mux22.HandleFunc("DELETE /api/jobs/{id}", s.handleDeleteJob)
-	mux22.HandleFunc("POST /api/jobs/{id}/run", s.handleRunJob)
+	return http.ListenAndServe(addr, s.secure(addr, mux))
+}
 
-	mux22.HandleFunc("POST /api/importer/parse", s.handleImporterParse)
-
-	mux22.HandleFunc("GET /api/runs", s.handleGetRuns)
-	mux22.HandleFunc("GET /api/runs/{id}", s.handleGetRunByID)
-
-	mux22.HandleFunc("GET /api/stream", s.broker.ServeHTTP)
-
-	// Serve UI
-	importUI := func() http.Handler {
-		return http.FileServer(ui.GetStaticFS())
+// writeErr maps ErrNotFound to 404 and everything else to 500.
+func writeErr(w http.ResponseWriter, err error) {
+	code := http.StatusInternalServerError
+	if errors.Is(err, database.ErrNotFound) {
+		code = http.StatusNotFound
 	}
-	mux22.Handle("/", importUI())
-
-	return http.ListenAndServe(addr, s.authMiddleware(mux22))
+	http.Error(w, err.Error(), code)
 }
-
-func (s *Server) authMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Localhost bind security with optional authorization token support
-		if !strings.HasPrefix(r.RemoteAddr, "127.0.0.1") && !strings.HasPrefix(r.RemoteAddr, "[::1]") {
-			token := r.Header.Get("Authorization")
-			if token == "" {
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-				return
-			}
-			// Validate token (dummy validation for MVP)
-			if token != "Bearer secret-token" {
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-				return
-			}
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-// Handlers implementation
 
 func (s *Server) handleGetJobs(w http.ResponseWriter, r *http.Request) {
 	jobs, err := database.GetAllJobs(s.db)
@@ -110,10 +97,19 @@ func (s *Server) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if err := job.Validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := models.ValidateSchedule(job.Schedule); err != nil {
+		http.Error(w, "invalid schedule: "+err.Error(), http.StatusBadRequest)
+		return
+	}
 	if err := database.SaveJob(s.db, &job); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	s.jobsChanged()
 	json.NewEncoder(w).Encode(job)
 }
 
@@ -125,7 +121,7 @@ func (s *Server) handleGetJobByID(w http.ResponseWriter, r *http.Request) {
 	}
 	job, err := database.GetJobByID(s.db, id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		writeErr(w, err)
 		return
 	}
 	json.NewEncoder(w).Encode(job)
@@ -141,6 +137,7 @@ func (s *Server) handleDeleteJob(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	s.jobsChanged()
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -152,20 +149,17 @@ func (s *Server) handleRunJob(w http.ResponseWriter, r *http.Request) {
 	}
 	job, err := database.GetJobByID(s.db, id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		writeErr(w, err)
 		return
 	}
 
-	eng := backup.NewDefaultEngine(s.db)
-
-	// Hook the engine logger to SSE broker
-	eng.SetLogCallback(func(level, msg string) {
-		s.broker.Broadcast(fmt.Sprintf("[%s] %s", level, msg))
-	})
+	if s.engine.Busy(id) {
+		http.Error(w, backup.ErrJobBusy.Error(), http.StatusConflict)
+		return
+	}
 
 	go func() {
-		// Run in background
-		_, _ = eng.Run(context.Background(), job)
+		_, _ = s.engine.Run(context.Background(), job)
 	}()
 
 	w.WriteHeader(http.StatusAccepted)
@@ -214,7 +208,7 @@ func (s *Server) handleGetRunByID(w http.ResponseWriter, r *http.Request) {
 	}
 	run, err := database.GetRunByID(s.db, id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		writeErr(w, err)
 		return
 	}
 
@@ -245,9 +239,18 @@ func (s *Server) handleUpdateJob(w http.ResponseWriter, r *http.Request) {
 	}
 	job.ID = id
 
+	if err := job.Validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := models.ValidateSchedule(job.Schedule); err != nil {
+		http.Error(w, "invalid schedule: "+err.Error(), http.StatusBadRequest)
+		return
+	}
 	if err := database.UpdateJob(s.db, &job); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	s.jobsChanged()
 	json.NewEncoder(w).Encode(job)
 }

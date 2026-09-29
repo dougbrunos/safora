@@ -99,7 +99,10 @@ func (e *Engine) Prune(ctx context.Context, job *models.Job, lastRunStatus strin
 func (e *Engine) evaluatePolicy(policy string, candidates []os.FileInfo) []string {
 	var toDelete []string
 
-	parts := strings.Split(policy, " ")
+	parts := strings.Fields(strings.ToLower(policy))
+	if len(parts) == 2 {
+		parts = append(parts, "runs") // legacy "KEEP 5" saved by older dashboards
+	}
 	if len(parts) >= 3 && parts[0] == "keep" {
 		val, err := strconv.Atoi(parts[1])
 		if err != nil {

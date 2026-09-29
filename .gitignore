@@ -13,3 +13,5 @@
 docs/
 .agents/skills/
 .scratch/
+safora.token
+safora.db-*

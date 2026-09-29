@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
+	"sync"
 	"time"
 
 	"safora/internal/database"
@@ -12,9 +14,13 @@ import (
 	"safora/internal/retention"
 )
 
+// ErrJobBusy is returned when a Job is started while a Run of it is in progress.
+var ErrJobBusy = errors.New("job already running")
+
 type DefaultEngine struct {
 	db          *sql.DB
 	logCallback func(level, msg string)
+	running     sync.Map // job ID -> struct{}
 }
 
 func NewDefaultEngine(db *sql.DB) *DefaultEngine {
@@ -25,7 +31,23 @@ func (e *DefaultEngine) SetLogCallback(cb func(level, msg string)) {
 	e.logCallback = cb
 }
 
+// Busy reports whether a Run of the Job is in progress.
+func (e *DefaultEngine) Busy(jobID int64) bool {
+	_, ok := e.running.Load(jobID)
+	return ok
+}
+
 func (e *DefaultEngine) Run(ctx context.Context, job *models.Job) (*models.Run, error) {
+	if _, loaded := e.running.LoadOrStore(job.ID, struct{}{}); loaded {
+		msg := fmt.Sprintf("Job %d (%s) is already running; start refused", job.ID, job.Name)
+		log.Print(msg)
+		if e.logCallback != nil {
+			e.logCallback("WARNING", msg)
+		}
+		return nil, ErrJobBusy
+	}
+	defer e.running.Delete(job.ID)
+
 	run := &models.Run{
 		JobID:     job.ID,
 		Status:    "running",
